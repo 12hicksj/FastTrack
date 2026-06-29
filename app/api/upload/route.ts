@@ -8,6 +8,14 @@ import { handleApiError } from "@/auth";
 // possible here, since @vercel/blob's internal fetch does not carry browser
 // cookies. The real auth gate is at POST /api/claims where the URLs are used.
 export async function POST(request: NextRequest) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    console.error("BLOB_READ_WRITE_TOKEN is not set");
+    return Response.json(
+      { error: "Blob storage is not configured (BLOB_READ_WRITE_TOKEN missing)" },
+      { status: 503 }
+    );
+  }
+
   try {
     const body = (await request.json()) as HandleUploadBody;
 
@@ -25,6 +33,7 @@ export async function POST(request: NextRequest) {
 
     return Response.json(jsonResponse);
   } catch (error) {
+    console.error("Upload handler error:", error);
     return handleApiError(error);
   }
 }

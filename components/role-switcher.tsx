@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { buttonVariants } from "@/components/ui/button";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, LayoutGrid } from "lucide-react";
 import type { SessionUser } from "@/auth";
 import { BP } from "@/lib/api-path";
 
@@ -94,6 +94,11 @@ export function RoleSwitcher({ currentUser }: { currentUser: SessionUser }) {
             </DropdownMenuItem>
           ))}
         </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => router.push("/select-role")}>
+          <LayoutGrid className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-sm">All accounts</span>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

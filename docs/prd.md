@@ -59,7 +59,7 @@ Auto-approval is held to P1 because it's the only step where a claim passes with
 
 **Accuracy.** How far estimates land from the final repair cost, how often agents override the AI (and how large those overrides are), how often claims get reopened, and whether we're systematically paying too much or too little.
 
-**Experience.** Time from photo submission to estimate, plus CSAT — a short rating the policyholder gives after the claim.
+**Experience.** Time from photo submission to estimate, plus CSAT (Customer Satisfaction Score) — a short rating the policyholder gives after their claim is resolved. It's the check that the efficiency gains actually reach the customer and that faster, automated handling is improving the experience rather than quietly degrading it.
 
 **Guardrails.** Whether confidence scores are calibrated (does 90% confidence mean right about 90% of the time), the rate of claims auto-approved that shouldn't have been, and the dispute rate. These can block a launch on their own.
 
@@ -71,4 +71,4 @@ Auto-approval is held to P1 because it's the only step where a claim passes with
 
 ---
 
-**Prototype scope.** The prototype covers the agent's path through the loop: open a claim, upload damage photos, and the AI returns a structured assessment (damaged parts, severity, a rough estimate range, a confidence score, and a suggested next step). The agent accepts or overrides each finding, and the claim routes to one of four tiers (auto-approved, agent review, low confidence, or senior adjuster) based on confidence and cost. The demo shows the full loop including auto-approval, though a real rollout would keep auto-approval off until confidence scores prove out. The AI step can run against a real vision model or a mock, so the workflow is the same either way.
+**Prototype scope.** The prototype covers the agent's path through the loop: open a claim, upload damage photos, and the AI returns a structured assessment (damaged parts, severity, an itemized estimate, a confidence score, and a suggested next step). The agent accepts or overrides each finding, and the claim routes to one of four tiers (auto-approved, agent review, low confidence, or senior adjuster) based on confidence and cost. The demo shows the full loop including auto-approval, though a real rollout would keep auto-approval off until confidence scores prove out. The AI step can run against a real vision model or a mock, so the workflow is the same either way.

@@ -72,9 +72,9 @@ function SectionHeader({
   );
 }
 
-function FieldGroup({ label, value }: { label: string; value: string }) {
+function FieldGroup({ label, value, className }: { label: string; value: string; className?: string }) {
   return (
-    <div>
+    <div className={className}>
       <dt className="text-xs text-muted-foreground mb-0.5">{label}</dt>
       <dd className="text-sm font-medium font-mono">{value}</dd>
     </div>
@@ -319,11 +319,11 @@ export default function NewClaimPage() {
             </div>
 
             {selectedVehicle && (
-              <dl className="grid grid-cols-2 sm:grid-cols-5 gap-4 rounded-lg border border-border bg-muted/20 px-4 py-3">
+              <dl className="grid grid-cols-2 sm:grid-cols-6 gap-4 rounded-lg border border-border bg-muted/20 px-4 py-3">
                 <FieldGroup label="Year" value={String(selectedVehicle.year)} />
                 <FieldGroup label="Make" value={selectedVehicle.make} />
                 <FieldGroup label="Model" value={selectedVehicle.model} />
-                <FieldGroup label="VIN" value={selectedVehicle.vin} />
+                <FieldGroup label="VIN" value={selectedVehicle.vin} className="col-span-2" />
                 <FieldGroup label="Plate" value={selectedVehicle.licensePlate ?? "—"} />
               </dl>
             )}

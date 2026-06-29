@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -26,6 +26,12 @@ const ROLE_LABELS: Record<string, string> = {
   customer: "Customer",
   agent: "Claims Agent",
   supervisor: "Senior Adjuster",
+};
+
+const ROLE_COLORS: Record<string, string> = {
+  customer: "bg-blue-500",
+  agent: "bg-violet-500",
+  supervisor: "bg-amber-500",
 };
 
 export function RoleSwitcher({ currentUser }: { currentUser: SessionUser }) {
@@ -51,26 +57,42 @@ export function RoleSwitcher({ currentUser }: { currentUser: SessionUser }) {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className={buttonVariants({ variant: "outline", size: "sm" }) + " gap-1"}>
+      <DropdownMenuTrigger
+        className={buttonVariants({ variant: "outline", size: "sm" }) + " gap-1.5"}
+      >
+        <span
+          className={`h-2 w-2 rounded-full shrink-0 ${ROLE_COLORS[currentUser.role] ?? "bg-gray-400"}`}
+        />
         {currentUser.firstName} {currentUser.lastName}
-        <span className="text-muted-foreground">· {ROLE_LABELS[currentUser.role] ?? currentUser.role}</span>
-        <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+        <ChevronDown className="h-3.5 w-3.5 opacity-50" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="text-xs text-muted-foreground">Switch demo role</DropdownMenuLabel>
+
+      <DropdownMenuContent align="end" className="w-52">
+        <div className="px-2 py-1.5">
+          <p className="text-xs font-medium text-muted-foreground">Switch demo role</p>
+        </div>
         <DropdownMenuSeparator />
-        {users?.map((u) => (
-          <DropdownMenuItem
-            key={u.userId}
-            disabled={u.userId === currentUser.userId}
-            onSelect={() => switchTo(u.userId)}
-          >
-            <div className="flex flex-col">
-              <span className="font-medium">{u.firstName} {u.lastName}</span>
-              <span className="text-xs text-muted-foreground">{ROLE_LABELS[u.role] ?? u.role}</span>
-            </div>
-          </DropdownMenuItem>
-        ))}
+        <DropdownMenuGroup>
+          {users?.map((u) => (
+            <DropdownMenuItem
+              key={u.userId}
+              disabled={u.userId === currentUser.userId}
+              onClick={() => switchTo(u.userId)}
+            >
+              <span
+                className={`h-2 w-2 rounded-full shrink-0 ${ROLE_COLORS[u.role] ?? "bg-gray-400"}`}
+              />
+              <div className="flex flex-col min-w-0">
+                <span className="text-sm font-medium truncate">
+                  {u.firstName} {u.lastName}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {ROLE_LABELS[u.role] ?? u.role}
+                </span>
+              </div>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

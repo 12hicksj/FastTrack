@@ -372,11 +372,11 @@ export function ClaimDetail({
 
       {/* Assess CTA */}
       {canAssess && (
-        <div className="flex items-center justify-between gap-4 rounded-xl border border-dashed border-border bg-muted/20 px-4 py-3">
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
           <div>
-            <p className="text-sm font-medium">Ready for assessment</p>
+            <p className="text-sm font-medium text-primary">Ready for AI assessment</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Run AI damage analysis to generate findings and a repair estimate.
+              Run damage analysis to generate findings and a repair estimate.
             </p>
           </div>
           <Button size="sm" onClick={runAssessment} disabled={assessing} className="gap-1.5 shrink-0">

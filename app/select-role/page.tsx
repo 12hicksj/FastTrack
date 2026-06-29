@@ -14,22 +14,28 @@ interface DemoUser {
 
 const ROLE_META: Record<
   string,
-  { label: string; description: string; accent: string }
+  { label: string; description: string; dot: string; accent: string; bg: string }
 > = {
   customer: {
     label: "Customer",
     description: "Submit a new claim and upload damage photos",
-    accent: "group-hover:border-blue-500",
+    dot: "bg-blue-500",
+    accent: "group-hover:border-blue-400 group-hover:shadow-blue-100",
+    bg: "group-hover:bg-blue-50/40",
   },
   agent: {
     label: "Claims Agent",
     description: "Review damage assessments, run AI analysis, approve or deny",
-    accent: "group-hover:border-violet-500",
+    dot: "bg-violet-500",
+    accent: "group-hover:border-violet-400 group-hover:shadow-violet-100",
+    bg: "group-hover:bg-violet-50/40",
   },
   supervisor: {
     label: "Senior Adjuster",
     description: "Approve escalated and high-value claims",
-    accent: "group-hover:border-amber-500",
+    dot: "bg-amber-500",
+    accent: "group-hover:border-amber-400 group-hover:shadow-amber-100",
+    bg: "group-hover:bg-amber-50/40",
   },
 };
 
@@ -92,8 +98,9 @@ export default function SelectRolePage() {
                 <button
                   key={u.userId}
                   onClick={() => selectUser(u.userId)}
-                  className={`group w-full flex items-center gap-4 rounded-xl border border-border bg-card px-5 py-4 text-left transition-all hover:shadow-sm ${meta.accent}`}
+                  className={`group w-full flex items-center gap-4 rounded-xl border border-border bg-card px-5 py-4 text-left transition-all hover:shadow-md ${meta.accent} ${meta.bg}`}
                 >
+                  <span className={`h-3 w-3 rounded-full shrink-0 ${meta.dot}`} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-2">
                       <span className="font-semibold text-sm">

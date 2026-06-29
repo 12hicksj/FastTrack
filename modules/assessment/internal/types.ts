@@ -9,7 +9,7 @@ export interface FindingRecord {
 }
 
 export interface AssessmentRecord {
-  assessmentId: number;
+  assessmentId: string;
   claimId: string;
   version: number;
   source: string;

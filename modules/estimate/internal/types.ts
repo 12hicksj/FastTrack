@@ -1,6 +1,6 @@
 export interface LineItemRecord {
   lineItemId: number;
-  assessmentId: number;
+  assessmentId: string;
   description: string;
   partCost: string;
   laborHours: string;

@@ -1,7 +1,4 @@
-// Public contract for the claims module.
-// Other modules import only from here, never from internal/.
-
-export type { ClaimSummary, ClaimDetail, PhotoRecord } from "./internal/types";
+export type { ClaimSummary, ClaimDetail } from "./internal/types";
 export {
   createClaim,
   getClaimDetail,
@@ -10,4 +7,5 @@ export {
   markAssessed,
   markRouted,
   markAutoApproved,
+  listVehiclesForUser,
 } from "./internal/service";

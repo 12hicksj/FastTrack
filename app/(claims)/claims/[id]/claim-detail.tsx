@@ -74,10 +74,10 @@ const ACTION_OPTIONS = [
 ];
 
 const DAMAGE_TYPE_OPTIONS = [
-  { id: 1, label: "Scratch", value: "scratch" },
-  { id: 2, label: "Dent",    value: "dent" },
-  { id: 3, label: "Structural", value: "structural" },
-  { id: 4, label: "Glass",   value: "glass" },
+  { id: 1, label: "Scratch" },
+  { id: 2, label: "Dent" },
+  { id: 3, label: "Structural" },
+  { id: 4, label: "Glass" },
 ];
 
 const SEVERITY_BADGE: Record<string, string> = {
@@ -106,6 +106,19 @@ function FindingRow({
   onChange: (id: number, patch: Partial<CorrectionState>) => void;
 }) {
   const [open, setOpen] = useState(false);
+
+  // Map correction IDs back to lowercase name strings for controlled selects.
+  // SelectValue can't look up labels when SelectContent is lazily mounted,
+  // so we use the name string as both the item value and the select value.
+  const defaultDamageType = finding.correction?.correctedDamageTypeId
+    ? (DAMAGE_TYPE_OPTIONS.find(d => d.id === finding.correction!.correctedDamageTypeId)?.label.toLowerCase() ?? finding.damageType)
+    : finding.damageType;
+  const defaultSeverity = finding.correction?.correctedSeverityId
+    ? (SEVERITY_OPTIONS.find(s => s.id === finding.correction!.correctedSeverityId)?.label.toLowerCase() ?? finding.severity)
+    : finding.severity;
+  const defaultRepairAction = finding.correction?.correctedRepairActionId
+    ? (ACTION_OPTIONS.find(a => a.id === finding.correction!.correctedRepairActionId)?.label.toLowerCase() ?? finding.repairAction)
+    : finding.repairAction;
 
   return (
     <div className="py-3.5">
@@ -176,17 +189,18 @@ function FindingRow({
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Damage Type</Label>
             <Select
-              defaultValue={String(finding.correction?.correctedDamageTypeId ?? DAMAGE_TYPE_OPTIONS.find(o => o.value === finding.damageType)?.id ?? "")}
-              onValueChange={(v) =>
-                v && onChange(finding.findingId, { correctedDamageTypeId: parseInt(v) })
-              }
+              defaultValue={defaultDamageType}
+              onValueChange={(v) => {
+                const opt = DAMAGE_TYPE_OPTIONS.find(d => d.label.toLowerCase() === v);
+                if (opt) onChange(finding.findingId, { correctedDamageTypeId: opt.id });
+              }}
             >
               <SelectTrigger className="h-7 text-xs w-full capitalize">
-                <SelectValue placeholder={finding.damageType} />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {DAMAGE_TYPE_OPTIONS.map((d) => (
-                  <SelectItem key={d.id} value={String(d.id)}>
+                  <SelectItem key={d.id} value={d.label.toLowerCase()}>
                     {d.label}
                   </SelectItem>
                 ))}
@@ -196,17 +210,18 @@ function FindingRow({
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Severity</Label>
             <Select
-              defaultValue={String(finding.correction?.correctedSeverityId ?? SEVERITY_OPTIONS.find(s => s.label.toLowerCase() === finding.severity)?.id ?? "")}
-              onValueChange={(v) =>
-                v && onChange(finding.findingId, { correctedSeverityId: parseInt(v) })
-              }
+              defaultValue={defaultSeverity}
+              onValueChange={(v) => {
+                const opt = SEVERITY_OPTIONS.find(s => s.label.toLowerCase() === v);
+                if (opt) onChange(finding.findingId, { correctedSeverityId: opt.id });
+              }}
             >
               <SelectTrigger className="h-7 text-xs w-full capitalize">
-                <SelectValue placeholder={finding.severity} />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {SEVERITY_OPTIONS.map((s) => (
-                  <SelectItem key={s.id} value={String(s.id)}>
+                  <SelectItem key={s.id} value={s.label.toLowerCase()}>
                     {s.label}
                   </SelectItem>
                 ))}
@@ -216,17 +231,18 @@ function FindingRow({
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Repair Action</Label>
             <Select
-              defaultValue={String(finding.correction?.correctedRepairActionId ?? ACTION_OPTIONS.find(a => a.label.toLowerCase() === finding.repairAction)?.id ?? "")}
-              onValueChange={(v) =>
-                v && onChange(finding.findingId, { correctedRepairActionId: parseInt(v) })
-              }
+              defaultValue={defaultRepairAction}
+              onValueChange={(v) => {
+                const opt = ACTION_OPTIONS.find(a => a.label.toLowerCase() === v);
+                if (opt) onChange(finding.findingId, { correctedRepairActionId: opt.id });
+              }}
             >
               <SelectTrigger className="h-7 text-xs w-full capitalize">
-                <SelectValue placeholder={finding.repairAction} />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {ACTION_OPTIONS.map((a) => (
-                  <SelectItem key={a.id} value={String(a.id)}>
+                  <SelectItem key={a.id} value={a.label.toLowerCase()}>
                     {a.label}
                   </SelectItem>
                 ))}

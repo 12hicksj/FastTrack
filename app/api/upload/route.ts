@@ -7,20 +7,25 @@ import { getSession, handleApiError } from "@/auth";
 // then includes the returned URL in the claim creation request.
 export async function POST(request: NextRequest) {
   try {
-    const user = await getSession();
-    if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
-
     const body = (await request.json()) as HandleUploadBody;
 
     const jsonResponse = await handleUpload({
       body,
       request,
-      onBeforeGenerateToken: async (_pathname) => ({
-        allowedContentTypes: ["image/jpeg", "image/png", "image/webp", "image/heic"],
-        maximumSizeInBytes: 10 * 1024 * 1024, // 10 MB
-      }),
+      // Auth runs only during token generation (browser request).
+      // The blob.upload-completed callback comes from Vercel's CDN with no
+      // session cookie, so checking auth here instead of before handleUpload
+      // prevents the callback from hitting a 401 and killing the upload.
+      onBeforeGenerateToken: async (_pathname) => {
+        const user = await getSession();
+        if (!user) throw new Error("Not authenticated");
+        return {
+          allowedContentTypes: ["image/jpeg", "image/png", "image/webp", "image/heic"],
+          maximumSizeInBytes: 10 * 1024 * 1024, // 10 MB
+        };
+      },
       onUploadCompleted: async () => {
-        // No-op for prototype; production would link the blob to a pending upload record
+        // No-op for prototype
       },
     });
 

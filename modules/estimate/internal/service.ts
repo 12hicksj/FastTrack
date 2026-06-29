@@ -3,7 +3,7 @@ import { estimateLineItems } from "@/db/schema/estimate";
 import { assessmentFindings, severityLevels, repairActions } from "@/db/schema/assessment";
 import { vehicles, claims } from "@/db/schema/claims";
 import { eq } from "drizzle-orm";
-import { lookupPrice, lineTotal, LABOR_RATE, TOTAL_LOSS_THRESHOLD } from "./pricing";
+import { lookupPriceWithVehicle, lineTotal, LABOR_RATE, TOTAL_LOSS_THRESHOLD } from "./pricing";
 import type { EstimateResult, LineItemRecord } from "./types";
 
 export async function generateEstimate(
@@ -23,22 +23,29 @@ export async function generateEstimate(
     .innerJoin(repairActions, eq(assessmentFindings.repairActionId, repairActions.repairActionId))
     .where(eq(assessmentFindings.assessmentId, assessmentId));
 
-  // Load vehicle value for total-loss check
+  // Load vehicle info for pricing and total-loss check
   const claimRows = await db
-    .select({ value: vehicles.value })
+    .select({ value: vehicles.value, make: vehicles.make, year: vehicles.year })
     .from(claims)
     .innerJoin(vehicles, eq(claims.vehicleId, vehicles.vehicleId))
     .where(eq(claims.claimId, claimId))
     .limit(1);
 
   const vehicleValue = parseFloat(claimRows[0]?.value ?? "0");
+  const vehicleMake = claimRows[0]?.make ?? "";
+  const vehicleYear = claimRows[0]?.year ?? new Date().getFullYear();
 
   // Price each finding and persist line items
   let total = 0;
   const lineItems: LineItemRecord[] = [];
 
   for (const f of findings) {
-    const { partCost, laborHours } = lookupPrice(f.severityName, f.repairActionName);
+    const { partCost, laborHours } = lookupPriceWithVehicle(
+      f.severityName,
+      f.repairActionName,
+      vehicleMake,
+      vehicleYear
+    );
     const total_line = lineTotal(partCost, laborHours);
     total += total_line;
 

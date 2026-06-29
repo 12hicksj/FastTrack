@@ -31,6 +31,7 @@ import {
   Loader2,
   ChevronRight,
 } from "lucide-react";
+import { BP } from "@/lib/api-path";
 
 type Finding = z.infer<typeof FindingRecordSchema>;
 
@@ -243,7 +244,7 @@ export function ClaimDetail({
   async function runAssessment() {
     setAssessing(true);
     try {
-      const res = await fetch(`/api/claims/${claimId}/assess`, { method: "POST" });
+      const res = await fetch(`${BP}/api/claims/${claimId}/assess`, { method: "POST" });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? "Assessment failed");
@@ -272,7 +273,7 @@ export function ClaimDetail({
 
     setSubmittingReview(true);
     try {
-      const res = await fetch(`/api/claims/${claimId}/review`, {
+      const res = await fetch(`${BP}/api/claims/${claimId}/review`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -332,7 +333,7 @@ export function ClaimDetail({
 
       {/* Vehicle + incident meta */}
       <div className="rounded-xl border border-border p-4 space-y-4">
-        <dl className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+        <dl className="grid grid-cols-2 sm:grid-cols-6 gap-4">
           <MetaField label="Year" mono>
             {claim.vehicleYear}
           </MetaField>
@@ -340,6 +341,9 @@ export function ClaimDetail({
           <MetaField label="Model">{claim.vehicleModel}</MetaField>
           <MetaField label="VIN" mono>
             {claim.vehicleVin}
+          </MetaField>
+          <MetaField label="Plate" mono>
+            {claim.vehicleLicensePlate ?? "—"}
           </MetaField>
           <MetaField label="Value" mono>
             {fmt(claim.vehicleValue)}

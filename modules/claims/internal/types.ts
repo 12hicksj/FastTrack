@@ -10,11 +10,14 @@ export interface ClaimSummary {
   vehicleYear: number;
   fraudFlagged: boolean;
   assignedAgentId: number | null;
+  customerFirstName: string;
+  customerLastName: string;
 }
 
 export interface ClaimDetail extends ClaimSummary {
   vehicleVin: string;
   vehicleValue: string;
+  vehicleLicensePlate: string | null;
   incidentDescription: string;
   reportedByUserId: number;
   photos: {

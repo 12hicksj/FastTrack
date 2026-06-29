@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { X, ImageIcon, Loader2 } from "lucide-react";
+import { BP } from "@/lib/api-path";
 
 interface DemoUser {
   userId: number;
@@ -34,6 +35,7 @@ interface Vehicle {
   year: number;
   vin: string;
   value: string;
+  licensePlate?: string | null;
   customerId?: number;
 }
 
@@ -100,7 +102,7 @@ export default function NewClaimPage() {
   // All users — filter to customers for the agent customer-selector
   const { data: allUsers } = useQuery<DemoUser[]>({
     queryKey: ["demo-users"],
-    queryFn: () => fetch("/api/users").then((r) => r.json()),
+    queryFn: () => fetch(`${BP}/api/users`).then((r) => r.json()),
     enabled: isAgent,
     staleTime: Infinity,
   });
@@ -109,7 +111,7 @@ export default function NewClaimPage() {
   // All vehicles for the current session
   const { data: allVehicles } = useQuery<Vehicle[]>({
     queryKey: ["vehicles"],
-    queryFn: () => fetch("/api/vehicles").then((r) => r.json()),
+    queryFn: () => fetch(`${BP}/api/vehicles`).then((r) => r.json()),
   });
 
   // For agents, filter by selected customer; customers see all their own
@@ -152,7 +154,7 @@ export default function NewClaimPage() {
         const index = photos.length + newPhotos.length;
         const blob = await upload(file.name, file, {
           access: "public",
-          handleUploadUrl: "/api/upload",
+          handleUploadUrl: `${BP}/api/upload`,
         });
         newPhotos.push({
           url: blob.url,
@@ -177,7 +179,7 @@ export default function NewClaimPage() {
     }
     setSubmitting(true);
     try {
-      const res = await fetch("/api/claims", {
+      const res = await fetch(`${BP}/api/claims`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -195,7 +197,7 @@ export default function NewClaimPage() {
         throw new Error(body.error ?? "Submission failed");
       }
       const { claimId } = await res.json();
-      toast.success("Claim submitted.");
+      toast.success("Claim submitted and assessed.");
       router.push(`/claims/${claimId}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Submission failed.");
@@ -317,11 +319,12 @@ export default function NewClaimPage() {
             </div>
 
             {selectedVehicle && (
-              <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4 rounded-lg border border-border bg-muted/20 px-4 py-3">
+              <dl className="grid grid-cols-2 sm:grid-cols-5 gap-4 rounded-lg border border-border bg-muted/20 px-4 py-3">
                 <FieldGroup label="Year" value={String(selectedVehicle.year)} />
                 <FieldGroup label="Make" value={selectedVehicle.make} />
                 <FieldGroup label="Model" value={selectedVehicle.model} />
                 <FieldGroup label="VIN" value={selectedVehicle.vin} />
+                <FieldGroup label="Plate" value={selectedVehicle.licensePlate ?? "—"} />
               </dl>
             )}
           </div>
@@ -460,7 +463,7 @@ export default function NewClaimPage() {
             {submitting ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Submitting…
+                Analyzing photos…
               </>
             ) : (
               "Submit claim"

@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
+import { BP } from "@/lib/api-path";
 
 interface DemoUser {
   userId: number;
@@ -39,20 +40,18 @@ const ROLE_META: Record<
   },
 };
 
-const ROLE_ORDER = ["customer", "agent", "supervisor"];
-
 export default function SelectRolePage() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
   const { data: users, isLoading } = useQuery<DemoUser[]>({
     queryKey: ["demo-users"],
-    queryFn: () => fetch("/api/users").then((r) => r.json()),
+    queryFn: () => fetch(`${BP}/api/users`).then((r) => r.json()),
     staleTime: Infinity,
   });
 
   async function selectUser(userId: number) {
-    await fetch("/api/auth/switch", {
+    await fetch(`${BP}/api/auth/switch`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId }),
@@ -62,7 +61,11 @@ export default function SelectRolePage() {
   }
 
   const sorted = users
-    ? ROLE_ORDER.map((r) => users.find((u) => u.role === r)).filter(Boolean)
+    ? [
+        ...users.filter((u) => u.role === "customer"),
+        ...users.filter((u) => u.role === "agent"),
+        ...users.filter((u) => u.role === "supervisor"),
+      ]
     : [];
 
   return (

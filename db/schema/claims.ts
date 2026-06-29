@@ -53,6 +53,7 @@ export const vehicles = pgTable("vehicles", {
   model: text("model").notNull(),
   year: integer("year").notNull(),
   value: numeric("value", { precision: 10, scale: 2 }).notNull(),
+  licensePlate: text("license_plate"),
 });
 
 export const claims = pgTable(

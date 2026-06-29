@@ -139,6 +139,8 @@ export const ClaimSummarySchema = z.object({
   vehicleYear: z.number(),
   fraudFlagged: z.boolean(),
   assignedAgentId: z.number().nullable(),
+  customerFirstName: z.string(),
+  customerLastName: z.string(),
 });
 
 export const PhotoSchema = z.object({
@@ -159,6 +161,7 @@ export const ReviewSchema = z.object({
 export const ClaimDetailSchema = ClaimSummarySchema.extend({
   vehicleVin: z.string(),
   vehicleValue: z.string(),
+  vehicleLicensePlate: z.string().nullable(),
   incidentDescription: z.string(),
   reportedByUserId: z.number(),
   photos: z.array(PhotoSchema),

@@ -26,6 +26,7 @@ export async function GET() {
         year: vehicles.year,
         vin: vehicles.vin,
         value: vehicles.value,
+        licensePlate: vehicles.licensePlate,
         customerId: policies.customerId,
       })
       .from(vehicles)

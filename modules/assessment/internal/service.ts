@@ -1,23 +1,133 @@
+import Anthropic from "@anthropic-ai/sdk";
 import { db } from "@/db";
 import { assessments, assessmentFindings, damageTypes, severityLevels, repairActions } from "@/db/schema/assessment";
-import { claims } from "@/db/schema/claims";
+import { claims, claimPhotos } from "@/db/schema/claims";
 import { eq, and } from "drizzle-orm";
 import { getMockFixture } from "./mock";
 import type { AssessmentRecord } from "./types";
 import type { AssessmentResponse } from "@/shared/schemas";
 
+type VisionFixture = Omit<AssessmentResponse, "claimId">;
+
+const SYSTEM_PROMPT = `You are an expert vehicle damage assessor for an auto insurance company. Analyze all provided vehicle photos together and return a structured damage assessment as a single JSON object.
+
+Return ONLY a valid JSON object — no markdown, no code blocks, no explanation:
+{
+  "overallConfidence": <number 0.0–1.0>,
+  "summary": "<plain-English summary of all damage found across all photos>",
+  "findings": [
+    {
+      "partLabel": "<specific part name, e.g. Driver-Side Door, Front Bumper Cover>",
+      "damageType": "<one of: scratch, dent, structural, glass>",
+      "severity": "<one of: minor, moderate, severe>",
+      "repairAction": "<one of: repair, replace>",
+      "confidence": <number 0.0–1.0>,
+      "uncertaintyNote": "<string describing uncertainty, or null>"
+    }
+  ],
+  "photoQuality": {
+    "<exact_photo_url>": <true if clear and usable, false if blurry/dark/unusable>
+  }
+}
+
+Guidelines:
+- Cross-reference all photos. When multiple angles confirm the same damaged part, report it once and raise confidence.
+- Be specific with partLabel (e.g. "Rear Quarter Panel" not "Side").
+- overallConfidence reflects certainty across all findings combined.
+- Populate photoQuality for every URL passed in the user message.`;
+
+function validateDamageType(t: string): "scratch" | "dent" | "structural" | "glass" {
+  if (["scratch", "dent", "structural", "glass"].includes(t)) return t as "scratch" | "dent" | "structural" | "glass";
+  return "dent";
+}
+
+function validateSeverity(t: string): "minor" | "moderate" | "severe" {
+  if (["minor", "moderate", "severe"].includes(t)) return t as "minor" | "moderate" | "severe";
+  return "moderate";
+}
+
+function validateRepairAction(t: string): "repair" | "replace" {
+  if (["repair", "replace"].includes(t)) return t as "repair" | "replace";
+  return "repair";
+}
+
 async function callVision(
   claimNumber: string,
-  _photoUrls: string[]
-): Promise<Omit<AssessmentResponse, "claimId">> {
-  // Mock is the default and complete prototype path (MOCK_VISION=true).
-  // The real path (Claude vision API) is structurally supported behind this
-  // same contract and the MOCK_VISION toggle, but is optional per spec §13.
-  return getMockFixture(claimNumber);
+  photoUrls: string[]
+): Promise<{ assessment: VisionFixture; photoQuality: Record<string, boolean> }> {
+  const useMock = process.env.MOCK_VISION === "true" || !process.env.ANTHROPIC_API_KEY;
+
+  if (useMock) {
+    return { assessment: getMockFixture(claimNumber), photoQuality: {} };
+  }
+
+  try {
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const imageBlocks: Anthropic.ImageBlockParam[] = photoUrls.map((url) => ({
+      type: "image",
+      source: { type: "url", url },
+    }));
+
+    const textBlock: Anthropic.TextBlockParam = {
+      type: "text",
+      text: `Assess all damage visible across these ${photoUrls.length} photos for claim ${claimNumber}.\n\nPhoto URLs (use these exact strings as keys in photoQuality):\n${photoUrls.map((u, i) => `${i + 1}. ${u}`).join("\n")}`,
+    };
+
+    const stream = client.messages.stream({
+      model: "claude-opus-4-8",
+      max_tokens: 4096,
+      thinking: { type: "adaptive" },
+      system: SYSTEM_PROMPT,
+      messages: [{ role: "user", content: [...imageBlocks, textBlock] }],
+    });
+
+    const message = await stream.finalMessage();
+
+    const responseText = message.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("");
+
+    // Strip markdown code fences if Claude wraps the JSON
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON object found in Claude response");
+
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    const assessment: VisionFixture = {
+      source: "real",
+      modelVersion: "claude-opus-4-8",
+      overallConfidence: Math.min(1, Math.max(0, Number(parsed.overallConfidence) || 0.7)),
+      summary: String(parsed.summary || "Assessment complete."),
+      findings: Array.isArray(parsed.findings)
+        ? parsed.findings.map((f: Record<string, unknown>) => ({
+            partLabel: String(f.partLabel || "Unknown part"),
+            damageType: validateDamageType(String(f.damageType || "")),
+            severity: validateSeverity(String(f.severity || "")),
+            repairAction: validateRepairAction(String(f.repairAction || "")),
+            confidence: Math.min(1, Math.max(0, Number(f.confidence) || 0.7)),
+            uncertaintyNote: f.uncertaintyNote ? String(f.uncertaintyNote) : null,
+          }))
+        : [],
+    };
+
+    const photoQuality: Record<string, boolean> = {};
+    if (parsed.photoQuality && typeof parsed.photoQuality === "object") {
+      for (const [url, usable] of Object.entries(parsed.photoQuality)) {
+        photoQuality[url] = Boolean(usable);
+      }
+    }
+
+    return { assessment, photoQuality };
+  } catch (err) {
+    console.error("[assessment] Claude vision error — falling back to mock:", err);
+    return { assessment: getMockFixture(claimNumber), photoQuality: {} };
+  }
 }
 
 export async function runAssessment(claimId: string): Promise<AssessmentRecord> {
-  // Load claim + photos
+  // Load claim
   const claimRows = await db
     .select({ claimNumber: claims.claimNumber })
     .from(claims)
@@ -27,10 +137,9 @@ export async function runAssessment(claimId: string): Promise<AssessmentRecord> 
   if (!claimRows[0]) throw new Error(`Claim ${claimId} not found`);
   const { claimNumber } = claimRows[0];
 
-  // Load photo URLs for real vision path
-  const { claimPhotos } = await import("@/db/schema/claims");
+  // Load photos
   const photos = await db
-    .select({ storageUrl: claimPhotos.storageUrl })
+    .select({ photoId: claimPhotos.photoId, storageUrl: claimPhotos.storageUrl })
     .from(claimPhotos)
     .where(eq(claimPhotos.claimId, claimId));
 
@@ -50,7 +159,17 @@ export async function runAssessment(claimId: string): Promise<AssessmentRecord> 
   const nextVersion = existing.length + 1;
 
   // Call vision (mock or real)
-  const response = await callVision(claimNumber, photoUrls);
+  const { assessment: response, photoQuality } = await callVision(claimNumber, photoUrls);
+
+  // Update photo quality flags from Claude's per-photo assessment
+  for (const photo of photos) {
+    if (photo.storageUrl in photoQuality) {
+      await db
+        .update(claimPhotos)
+        .set({ qualityCheckPassed: photoQuality[photo.storageUrl] })
+        .where(eq(claimPhotos.photoId, photo.photoId));
+    }
+  }
 
   // Persist assessment
   const [assessment] = await db

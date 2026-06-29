@@ -192,10 +192,13 @@ export async function listClaims(actor: SessionUser): Promise<ClaimSummary[]> {
       fraudFlagged: claims.fraudFlagged,
       assignedAgentId: claims.assignedAgentId,
       reportedByUserId: claims.reportedByUserId,
+      customerFirstName: users.firstName,
+      customerLastName: users.lastName,
     })
     .from(claims)
     .innerJoin(claimStatuses, eq(claims.statusId, claimStatuses.statusId))
     .innerJoin(vehicles, eq(claims.vehicleId, vehicles.vehicleId))
+    .innerJoin(users, eq(claims.reportedByUserId, users.userId))
     .orderBy(desc(claims.createdAt));
 
   // Filter by role
@@ -252,6 +255,8 @@ export async function listClaims(actor: SessionUser): Promise<ClaimSummary[]> {
       vehicleYear: row.vehicleYear,
       fraudFlagged: row.fraudFlagged,
       assignedAgentId: row.assignedAgentId,
+      customerFirstName: row.customerFirstName,
+      customerLastName: row.customerLastName,
     };
   });
 }
@@ -275,10 +280,14 @@ export async function getClaimDetail(
       vehicleYear: vehicles.year,
       vehicleVin: vehicles.vin,
       vehicleValue: vehicles.value,
+      vehicleLicensePlate: vehicles.licensePlate,
+      customerFirstName: users.firstName,
+      customerLastName: users.lastName,
     })
     .from(claims)
     .innerJoin(claimStatuses, eq(claims.statusId, claimStatuses.statusId))
     .innerJoin(vehicles, eq(claims.vehicleId, vehicles.vehicleId))
+    .innerJoin(users, eq(claims.reportedByUserId, users.userId))
     .where(eq(claims.claimId, claimId))
     .limit(1);
 
@@ -469,8 +478,11 @@ export async function getClaimDetail(
     vehicleYear: row.vehicleYear,
     fraudFlagged: row.fraudFlagged,
     assignedAgentId: row.assignedAgentId,
+    customerFirstName: row.customerFirstName,
+    customerLastName: row.customerLastName,
     vehicleVin: row.vehicleVin,
     vehicleValue: row.vehicleValue,
+    vehicleLicensePlate: row.vehicleLicensePlate ?? null,
     incidentDescription: row.incidentDescription,
     reportedByUserId: row.reportedByUserId,
     photos,
@@ -489,6 +501,7 @@ export async function listVehiclesForUser(userId: number) {
       year: vehicles.year,
       vin: vehicles.vin,
       value: vehicles.value,
+      licensePlate: vehicles.licensePlate,
     })
     .from(vehicles)
     .innerJoin(policies, eq(vehicles.policyId, policies.policyId))

@@ -11,7 +11,7 @@ See [docs/prd.md](docs/prd.md) for what the product does and why, [docs/technica
 | Layer | Choice |
 |---|---|
 | Framework | Next.js 16 (App Router), TypeScript |
-| UI | Tailwind CSS v4, shadcn/ui, TanStack Query v5 |
+| UI | Tailwind CSS v4, shadcn/ui, TanStack Query v5, Inter + JetBrains Mono |
 | Database | PostgreSQL on Neon, accessed with Drizzle ORM |
 | File storage | Vercel Blob (photos only; URLs stored in Postgres) |
 | Contracts | Zod schemas in `shared/` — single source of truth for request/response types |
@@ -40,15 +40,19 @@ Route handlers in `app/api/` stay thin: they validate input against a Zod schema
 
 | PRD feature | Spec section | Status |
 |---|---|---|
-| Claim intake and photo ingestion | §13 Screens / Intake | In progress (Phase 4) |
-| AI damage assessment — mock vision | §9 AI integration | In progress (Phase 3) |
-| AI damage assessment — real vision (Claude API) | §9 AI integration | Optional / Phase 3 |
-| Preliminary estimate generation | §13 Estimate pricing | In progress (Phase 3) |
-| Confidence scoring and triage | §10 Routing logic | In progress (Phase 3) |
-| Agent review and override workspace | §13 Screens / Claim detail | In progress (Phase 4) |
-| Routing and auto-approval | §10 Routing logic | In progress (Phase 3) |
-| Audit trail | §6 Modules / audit | In progress (Phase 3) |
-| Role switcher (customer / agent / supervisor) | §7 Users and roles | In progress (Phase 3) |
+| Claim intake and photo ingestion | §13 Screens / Intake | Built |
+| Automated assessment on claim submission | §9 AI integration | Built — runs immediately on every new claim |
+| AI damage assessment — mock vision | §9 AI integration | Built (`MOCK_VISION=true`, default) |
+| AI damage assessment — real vision (Claude API) | §9 AI integration | Built — `MOCK_VISION=false` sends all photos to `claude-opus-4-8` |
+| Image quality gate | §9 AI integration | Built — Claude rates each photo; flags written to DB |
+| Cross-photo aggregation | §9 AI integration | Built — single Claude call sees all angles at once |
+| Preliminary estimate generation | §13 Estimate pricing | Built — vehicle-aware pricing (make/year multipliers) |
+| Confidence scoring and triage | §10 Routing logic | Built |
+| Agent review and override workspace | §13 Screens / Claim detail | Built |
+| Routing and auto-approval | §10 Routing logic | Built — auto-approval always on for eligible claims |
+| Audit trail | §6 Modules / audit | Built |
+| Role switcher (customer / agent / supervisor) | §7 Users and roles | Built |
+| License plate on vehicles | Data model | Built |
 | Fraud detection | PRD §3 P2 | Not built — P2 scope |
 | Video / multi-angle capture | PRD §3 P2 | Not built — P2 scope |
 
@@ -56,14 +60,14 @@ Route handlers in `app/api/` stay thin: they validate input against a Zod schema
 
 ## Seed scenarios
 
-The database is pre-seeded with four claims that demonstrate every routing branch:
+The database is pre-seeded with two customer accounts and four claims that demonstrate every routing branch:
 
-| Claim | Scenario | Routing | Estimate | Notes |
+| Claim | Customer | Scenario | Routing | Estimate |
 |---|---|---|---|---|
-| CLM-2024-001 | Clean | auto-approved | ~$870 (mock) | Run assessment from the UI to trigger the auto-approve loop |
-| CLM-2024-002 | Ambiguous | agent\_review | $3,120 | Confidence 0.72 — below threshold |
-| CLM-2024-003 | Severe | senior\_adjuster | $10,440 | Exceeds $10k cost threshold; possible total loss |
-| CLM-2024-004 | Fraud-flagged | senior\_adjuster | $2,340 | Fraud flag overrides cost |
+| CLM-2024-001 | Alex Rivera | Clean — run assessment to trigger auto-approve | auto\_approved | ~$870 (mock) |
+| CLM-2024-002 | Alex Rivera | Ambiguous — confidence 0.72, below threshold | agent\_review | $3,120 |
+| CLM-2024-003 | Sam Torres | Severe near-total-loss — exceeds $10k threshold | senior\_adjuster | $10,440 |
+| CLM-2024-004 | Sam Torres | Fraud-flagged — flag overrides cost | senior\_adjuster | $2,340 |
 
 Auto-approval is **off by default** so a person reviews every claim. The clean scenario (CLM-2024-001) has auto-approval enabled so the auto-approve branch can be demonstrated end to end.
 
@@ -100,7 +104,9 @@ cp .env.example .env
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob read/write token — used by the app and the seed script |
 | `MOCK_VISION` | `true` (default) uses the deterministic mock; `false` calls the real Claude vision API |
 | `AUTH_SECRET` | Secret for signing the mock session cookie |
-| `ANTHROPIC_API_KEY` | Only required when `MOCK_VISION=false` |
+| `ANTHROPIC_API_KEY` | Required when `MOCK_VISION=false` |
+
+The app is served under the `/fasttrack` base path (set in `next.config.ts`). The full URL is `https://scalecarinsurance.com/fasttrack` when the custom domain is configured in Vercel.
 
 ### 3. Run migrations
 
@@ -116,7 +122,13 @@ This runs drizzle-kit against `DATABASE_URL_UNPOOLED` (the direct Neon connectio
 npm run db:seed
 ```
 
-Inserts all lookup data, the three demo user accounts, four scenario claims with assessments and routing decisions, and uploads 16 placeholder photos to Vercel Blob.
+Inserts all lookup data, four demo user accounts (two customers, one agent, one supervisor), four scenario claims with assessments and routing decisions, and uses Pexels CDN photos for the seeded claims.
+
+To wipe and re-seed from scratch:
+
+```bash
+npm run db:reset
+```
 
 ### 5. Start the dev server
 
@@ -124,7 +136,7 @@ Inserts all lookup data, the three demo user accounts, four scenario claims with
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The app redirects to `/claims`.
+Open [http://localhost:3000](http://localhost:3000). The app redirects to `/select-role`.
 
 ---
 
@@ -132,11 +144,14 @@ Open [http://localhost:3000](http://localhost:3000). The app redirects to `/clai
 
 Switch between these with the role switcher in the app header — no passwords required:
 
-| Role | Email |
-|---|---|
-| Customer | customer@scale.insurance |
-| Agent | agent@scale.insurance |
-| Supervisor | supervisor@scale.insurance |
+| Role | Name | Email |
+|---|---|---|
+| Customer | Alex Rivera | customer@scale.insurance |
+| Customer | Sam Torres | customer2@scale.insurance |
+| Claims Agent | Jordan Chen | agent@scale.insurance |
+| Senior Adjuster | Taylor Morgan | supervisor@scale.insurance |
+
+Each customer sees only their own claims and vehicles. Agents and supervisors see all claims across all customers, with a Customer column in the claims queue.
 
 ---
 
@@ -159,11 +174,13 @@ Unit tests cover the routing rules and the estimate pricing math.
 5. Run migrations and seed once against the Neon database:
    ```bash
    DATABASE_URL_UNPOOLED=<direct-string> npm run db:migrate
-   BLOB_READ_WRITE_TOKEN=<token> npm run db:seed
+   npm run db:seed
    ```
 6. Vercel deploys automatically on every push to `main`.
 
 > Migrations are **not** wired into the Vercel build. Run the migration script manually before deploying a schema change.
+>
+> To wipe and re-seed a deployed database: set `DATABASE_URL` to the pooled string and run `npm run db:reset`.
 
 ---
 
@@ -178,18 +195,18 @@ fasttrack/
 ├── app/                       Next.js App Router — pages and API route handlers
 │   ├── (claims)/              claim queue, detail/review, and intake screens
 │   ├── api/                   route handlers (thin: validate → call module interface)
-│   └── components/            reusable UI components
+│   └── select-role/           demo role/user picker (replaces login)
 ├── modules/                   backend domain modules
 │   ├── claims/                claim lifecycle, photos, review, corrections
 │   ├── assessment/            vision model (mock + optional real), findings
 │   ├── estimate/              line-item pricing
 │   ├── routing/               tier assignment and auto-approval
 │   └── audit/                 append-only event log
-├── auth/                      mock session, role check, role switcher
+├── auth/                      mock session, role check
 ├── shared/                    Zod schemas — single definition for all API contracts
 ├── components/                shadcn/ui component library + TanStack Query provider
 └── db/
     ├── schema/                Drizzle table definitions (one file per module owner)
     ├── migrations/            generated SQL migrations
-    └── seed/                  lookup data, demo claims, and photo upload script
+    └── seed/                  lookup data, demo claims (index.ts), and reset script (reset.ts)
 ```

@@ -85,6 +85,14 @@ async function main() {
       isActive: true,
     },
     {
+      roleId: customerRole.roleId,
+      email: "customer2@scale.insurance",
+      authProviderId: "mock|customer2",
+      firstName: "Sam",
+      lastName: "Torres",
+      isActive: true,
+    },
+    {
       roleId: agentRole.roleId,
       email: "agent@scale.insurance",
       authProviderId: "mock|agent",
@@ -102,8 +110,9 @@ async function main() {
     },
   ]).onConflictDoNothing();
 
-  const [customerUser, agentUser] = await Promise.all([
+  const [customerUser, customer2User, agentUser] = await Promise.all([
     db.select().from(users).where(eq(users.email, "customer@scale.insurance")).then(r => r[0]),
+    db.select().from(users).where(eq(users.email, "customer2@scale.insurance")).then(r => r[0]),
     db.select().from(users).where(eq(users.email, "agent@scale.insurance")).then(r => r[0]),
   ]);
 
@@ -191,26 +200,43 @@ async function main() {
     (await db.select().from(routingTiers)).map(t => [t.name, t.tierId])
   );
 
-  // ── 7. Policy and vehicles ──────────────────────────────────────────────────
-  const [policy] = await db.insert(policies).values({
+  // ── 7. Policies and vehicles ─────────────────────────────────────────────────
+  // Alex Rivera (customer 1)
+  const [policy1] = await db.insert(policies).values({
     policyNumber: "SCL-2024-00001",
     customerId: customerUser.userId,
     effectiveDate: "2024-01-01",
     expirationDate: "2025-12-31",
   }).onConflictDoNothing().returning();
 
-  const existingPolicy = policy ?? (await db.select().from(policies)
+  const existingPolicy = policy1 ?? (await db.select().from(policies)
     .where(eq(policies.policyNumber, "SCL-2024-00001")).then(r => r[0]));
 
-  const vehicleSeeds = [
-    { vin: "1HGBH41JXMN109186", make: "Honda",  model: "Civic",   year: 2021, value: "22000.00" },
-    { vin: "4T1BF3EK2AU068348", make: "Toyota", model: "Camry",   year: 2019, value: "18000.00" },
-    { vin: "1FTFW1ET5DFB12345", make: "Ford",   model: "F-150",   year: 2020, value: "13000.00" },
-    { vin: "WBA3A5C5XDF357825", make: "BMW",    model: "3 Series", year: 2022, value: "35000.00" },
-  ];
+  // Sam Torres (customer 2)
+  const [policy2] = await db.insert(policies).values({
+    policyNumber: "SCL-2024-00002",
+    customerId: customer2User.userId,
+    effectiveDate: "2024-01-01",
+    expirationDate: "2025-12-31",
+  }).onConflictDoNothing().returning();
 
-  for (const v of vehicleSeeds) {
+  const existingPolicy2 = policy2 ?? (await db.select().from(policies)
+    .where(eq(policies.policyNumber, "SCL-2024-00002")).then(r => r[0]));
+
+  const vehicleSeeds1 = [
+    { vin: "1HGBH41JXMN109186", make: "Honda",  model: "Civic",    year: 2021, value: "22000.00", licensePlate: "8YXD452" },
+    { vin: "4T1BF3EK2AU068348", make: "Toyota", model: "Camry",    year: 2019, value: "18000.00", licensePlate: "7KLM891" },
+  ];
+  for (const v of vehicleSeeds1) {
     await db.insert(vehicles).values({ ...v, policyId: existingPolicy.policyId }).onConflictDoNothing();
+  }
+
+  const vehicleSeeds2 = [
+    { vin: "1FTFW1ET5DFB12345", make: "Ford", model: "F-150",    year: 2020, value: "13000.00", licensePlate: "3FTW250" },
+    { vin: "WBA3A5C5XDF357825", make: "BMW",  model: "3 Series", year: 2022, value: "35000.00", licensePlate: "5BWM835" },
+  ];
+  for (const v of vehicleSeeds2) {
+    await db.insert(vehicles).values({ ...v, policyId: existingPolicy2.policyId }).onConflictDoNothing();
   }
 
   const vehicleList = await db.select().from(vehicles);
@@ -350,7 +376,7 @@ async function main() {
   const [claim3] = await db.insert(claims).values({
     claimNumber: "CLM-2024-003",
     vehicleId: vehicleByVin["1FTFW1ET5DFB12345"].vehicleId,
-    reportedByUserId: customerUser.userId,
+    reportedByUserId: customer2User.userId,
     assignedAgentId: agentUser.userId,
     statusId: statusMap["in_review"],
     incidentDate: "2024-12-01",
@@ -367,7 +393,7 @@ async function main() {
     await db.insert(claimPhotos).values({
       claimId: existingClaim3.claimId,
       photoTypeId: photoTypeMap[photoTypeNames[i]],
-      uploadedByUserId: customerUser.userId,
+      uploadedByUserId: customer2User.userId,
       storageUrl: photoUrls[2][i],
       qualityCheckPassed: true,
     }).onConflictDoNothing();
@@ -430,7 +456,7 @@ async function main() {
   const [claim4] = await db.insert(claims).values({
     claimNumber: "CLM-2024-004",
     vehicleId: vehicleByVin["WBA3A5C5XDF357825"].vehicleId,
-    reportedByUserId: customerUser.userId,
+    reportedByUserId: customer2User.userId,
     assignedAgentId: agentUser.userId,
     statusId: statusMap["in_review"],
     incidentDate: "2024-12-10",
@@ -447,7 +473,7 @@ async function main() {
     await db.insert(claimPhotos).values({
       claimId: existingClaim4.claimId,
       photoTypeId: photoTypeMap[photoTypeNames[i]],
-      uploadedByUserId: customerUser.userId,
+      uploadedByUserId: customer2User.userId,
       storageUrl: photoUrls[3][i],
       qualityCheckPassed: true,
     }).onConflictDoNothing();
@@ -507,10 +533,12 @@ async function main() {
   });
 
   console.log("✅  Seed complete.");
-  console.log("   CLM-2024-001 → ready_for_assessment (clean, demo auto-approve)");
-  console.log("   CLM-2024-002 → in_review / agent_review  (ambiguous, $3,120)");
-  console.log("   CLM-2024-003 → in_review / senior_adjuster (severe, $10,440)");
-  console.log("   CLM-2024-004 → in_review / senior_adjuster (fraud-flagged, $2,340)");
+  console.log("   Alex Rivera  (customer@scale.insurance):  Honda Civic, Toyota Camry");
+  console.log("   Sam Torres   (customer2@scale.insurance): Ford F-150, BMW 3 Series");
+  console.log("   CLM-2024-001 → ready_for_assessment (Alex, clean, demo auto-approve)");
+  console.log("   CLM-2024-002 → in_review / agent_review  (Alex, ambiguous, $3,120)");
+  console.log("   CLM-2024-003 → in_review / senior_adjuster (Sam, severe, $10,440)");
+  console.log("   CLM-2024-004 → in_review / senior_adjuster (Sam, fraud-flagged, $2,340)");
 }
 
 main().catch((err) => {

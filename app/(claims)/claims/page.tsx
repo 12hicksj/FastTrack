@@ -80,6 +80,11 @@ export default function ClaimsQueuePage() {
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
                   Claim
                 </th>
+                {session?.role !== "customer" && (
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                    Customer
+                  </th>
+                )}
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
                   Vehicle
                 </th>
@@ -117,6 +122,11 @@ export default function ClaimsQueuePage() {
                       )}
                     </Link>
                   </td>
+                  {session?.role !== "customer" && (
+                    <td className="px-4 py-3">
+                      {c.customerFirstName} {c.customerLastName}
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-muted-foreground">
                     {c.vehicleYear} {c.vehicleMake} {c.vehicleModel}
                   </td>

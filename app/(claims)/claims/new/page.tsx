@@ -59,7 +59,7 @@ function SectionHeader({
 }) {
   return (
     <div className="flex items-start gap-3 mb-4">
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-foreground text-background text-xs font-semibold mt-0.5">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-semibold mt-0.5">
         {step}
       </span>
       <div>

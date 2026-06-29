@@ -73,6 +73,12 @@ const ACTION_OPTIONS = [
   { id: 2, label: "Replace" },
 ];
 
+const SEVERITY_BADGE: Record<string, string> = {
+  minor:    "bg-emerald-50 border-emerald-200 text-emerald-700",
+  moderate: "bg-amber-50 border-amber-200 text-amber-700",
+  severe:   "bg-rose-50 border-rose-200 text-rose-700",
+};
+
 // ── Inline finding editor ─────────────────────────────────────────────────────
 
 interface CorrectionState {
@@ -97,17 +103,30 @@ function FindingRow({
     <div className="py-3.5">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0 space-y-1.5">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div>
             <span className="text-sm font-medium">{finding.partLabel}</span>
-            <span className="text-xs text-muted-foreground px-1.5 py-0.5 rounded bg-muted border border-border">
-              {finding.damageType}
-            </span>
-            <span className="text-xs text-muted-foreground px-1.5 py-0.5 rounded bg-muted border border-border">
-              {finding.severity}
-            </span>
-            <span className="text-xs text-muted-foreground px-1.5 py-0.5 rounded bg-muted border border-border">
-              {finding.repairAction}
-            </span>
+            <div className="flex items-center gap-2.5 flex-wrap mt-1">
+              <span className="inline-flex items-center gap-1 text-xs">
+                <span className="text-muted-foreground font-medium">Type</span>
+                <span className="px-1.5 py-0.5 rounded bg-muted border border-border text-foreground capitalize">
+                  {finding.damageType}
+                </span>
+              </span>
+              <span className="text-border text-xs">·</span>
+              <span className="inline-flex items-center gap-1 text-xs">
+                <span className="text-muted-foreground font-medium">Severity</span>
+                <span className={`px-1.5 py-0.5 rounded border text-xs capitalize ${SEVERITY_BADGE[finding.severity?.toLowerCase()] ?? "bg-muted border-border text-foreground"}`}>
+                  {finding.severity}
+                </span>
+              </span>
+              <span className="text-border text-xs">·</span>
+              <span className="inline-flex items-center gap-1 text-xs">
+                <span className="text-muted-foreground font-medium">Repair Action</span>
+                <span className="px-1.5 py-0.5 rounded bg-muted border border-border text-foreground capitalize">
+                  {finding.repairAction}
+                </span>
+              </span>
+            </div>
           </div>
           <ConfidenceIndicator value={finding.confidence} />
           {finding.uncertaintyNote && (
@@ -137,7 +156,7 @@ function FindingRow({
       {open && canEdit && (
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-lg border border-border bg-muted/20 p-3">
           <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Part label</Label>
+            <Label className="text-xs text-muted-foreground">Part Label</Label>
             <Input
               className="h-7 text-xs"
               defaultValue={finding.correction?.correctedPartLabel ?? finding.partLabel}
@@ -167,7 +186,7 @@ function FindingRow({
             </Select>
           </div>
           <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Repair action</Label>
+            <Label className="text-xs text-muted-foreground">Repair Action</Label>
             <Select
               defaultValue={String(finding.correction?.correctedRepairActionId ?? "")}
               onValueChange={(v) =>

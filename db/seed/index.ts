@@ -67,6 +67,7 @@ async function uploadCarPhoto(
   const blob = await res.blob();
   const result = await put(`demo/${filename}`, blob, {
     access: "public",
+    allowOverwrite: true,
     token: process.env.BLOB_READ_WRITE_TOKEN!,
   });
   return result.url;

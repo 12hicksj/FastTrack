@@ -591,7 +591,7 @@ export function ClaimDetail({
                 <tbody className="divide-y divide-border">
                   {assessment.lineItems.map((li) => (
                     <tr key={li.lineItemId}>
-                      <td className="px-4 py-2.5">{li.description}</td>
+                      <td className="px-4 py-2.5 capitalize">{li.description}</td>
                       <td className="px-4 py-2.5 text-right font-mono text-muted-foreground">
                         {fmt(li.partCost)}
                       </td>

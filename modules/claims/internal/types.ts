@@ -44,6 +44,7 @@ export interface ClaimDetail extends ClaimSummary {
       confidence: string;
       uncertaintyNote: string | null;
       correction: {
+        correctedDamageTypeId: number | null;
         correctedSeverityId: number | null;
         correctedRepairActionId: number | null;
         correctedPartLabel: string | null;

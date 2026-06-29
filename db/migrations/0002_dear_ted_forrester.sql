@@ -1,0 +1,2 @@
+ALTER TABLE "finding_corrections" ADD COLUMN "corrected_damage_type_id" integer;--> statement-breakpoint
+ALTER TABLE "finding_corrections" ADD CONSTRAINT "finding_corrections_corrected_damage_type_id_damage_types_damage_type_id_fk" FOREIGN KEY ("corrected_damage_type_id") REFERENCES "public"."damage_types"("damage_type_id") ON DELETE no action ON UPDATE no action;

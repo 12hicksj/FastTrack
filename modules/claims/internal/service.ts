@@ -153,6 +153,7 @@ export async function submitReview(
       await db.insert(findingCorrections).values({
         reviewId: review.reviewId,
         findingId: c.findingId,
+        correctedDamageTypeId: c.correctedDamageTypeId ?? null,
         correctedSeverityId: c.correctedSeverityId ?? null,
         correctedRepairActionId: c.correctedRepairActionId ?? null,
         correctedPartLabel: c.correctedPartLabel ?? null,
@@ -398,6 +399,7 @@ export async function getClaimDetail(
           uncertaintyNote: f.uncertaintyNote,
           correction: correction
             ? {
+                correctedDamageTypeId: correction.correctedDamageTypeId,
                 correctedSeverityId: correction.correctedSeverityId,
                 correctedRepairActionId: correction.correctedRepairActionId,
                 correctedPartLabel: correction.correctedPartLabel,

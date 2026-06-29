@@ -25,6 +25,7 @@ export type AssessClaimInput = z.infer<typeof AssessClaimSchema>;
 
 export const FindingCorrectionSchema = z.object({
   findingId: z.number().int().positive(),
+  correctedDamageTypeId: z.number().int().positive().optional(),
   correctedSeverityId: z.number().int().positive().optional(),
   correctedRepairActionId: z.number().int().positive().optional(),
   correctedPartLabel: z.string().optional(),
@@ -94,6 +95,7 @@ export const FindingRecordSchema = z.object({
   uncertaintyNote: z.string().nullable(),
   correction: z
     .object({
+      correctedDamageTypeId: z.number().nullable(),
       correctedSeverityId: z.number().nullable(),
       correctedRepairActionId: z.number().nullable(),
       correctedPartLabel: z.string().nullable(),

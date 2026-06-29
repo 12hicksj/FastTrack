@@ -14,6 +14,7 @@ import { users } from "./auth";
 import {
   assessments,
   assessmentFindings,
+  damageTypes,
   severityLevels,
   repairActions,
 } from "./assessment";
@@ -130,6 +131,9 @@ export const findingCorrections = pgTable("finding_corrections", {
   findingId: integer("finding_id")
     .notNull()
     .references(() => assessmentFindings.findingId),
+  correctedDamageTypeId: integer("corrected_damage_type_id").references(
+    () => damageTypes.damageTypeId
+  ),
   correctedSeverityId: integer("corrected_severity_id").references(
     () => severityLevels.severityId
   ),

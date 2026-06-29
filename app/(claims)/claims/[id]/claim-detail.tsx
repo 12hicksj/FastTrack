@@ -73,6 +73,13 @@ const ACTION_OPTIONS = [
   { id: 2, label: "Replace" },
 ];
 
+const DAMAGE_TYPE_OPTIONS = [
+  { id: 1, label: "Scratch", value: "scratch" },
+  { id: 2, label: "Dent",    value: "dent" },
+  { id: 3, label: "Structural", value: "structural" },
+  { id: 4, label: "Glass",   value: "glass" },
+];
+
 const SEVERITY_BADGE: Record<string, string> = {
   minor:    "bg-emerald-50 border-emerald-200 text-emerald-700",
   moderate: "bg-amber-50 border-amber-200 text-amber-700",
@@ -82,6 +89,7 @@ const SEVERITY_BADGE: Record<string, string> = {
 // ── Inline finding editor ─────────────────────────────────────────────────────
 
 interface CorrectionState {
+  correctedDamageTypeId?: number;
   correctedSeverityId?: number;
   correctedRepairActionId?: number;
   correctedPartLabel?: string;
@@ -154,7 +162,7 @@ function FindingRow({
       </div>
 
       {open && canEdit && (
-        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-lg border border-border bg-muted/20 p-3">
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 rounded-lg border border-border bg-muted/20 p-3">
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Part Label</Label>
             <Input
@@ -166,14 +174,34 @@ function FindingRow({
             />
           </div>
           <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Damage Type</Label>
+            <Select
+              defaultValue={String(finding.correction?.correctedDamageTypeId ?? DAMAGE_TYPE_OPTIONS.find(o => o.value === finding.damageType)?.id ?? "")}
+              onValueChange={(v) =>
+                v && onChange(finding.findingId, { correctedDamageTypeId: parseInt(v) })
+              }
+            >
+              <SelectTrigger className="h-7 text-xs w-full capitalize">
+                <SelectValue placeholder={finding.damageType} />
+              </SelectTrigger>
+              <SelectContent>
+                {DAMAGE_TYPE_OPTIONS.map((d) => (
+                  <SelectItem key={d.id} value={String(d.id)}>
+                    {d.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Severity</Label>
             <Select
-              defaultValue={String(finding.correction?.correctedSeverityId ?? "")}
+              defaultValue={String(finding.correction?.correctedSeverityId ?? SEVERITY_OPTIONS.find(s => s.label.toLowerCase() === finding.severity)?.id ?? "")}
               onValueChange={(v) =>
                 v && onChange(finding.findingId, { correctedSeverityId: parseInt(v) })
               }
             >
-              <SelectTrigger className="h-7 text-xs w-full">
+              <SelectTrigger className="h-7 text-xs w-full capitalize">
                 <SelectValue placeholder={finding.severity} />
               </SelectTrigger>
               <SelectContent>
@@ -188,12 +216,12 @@ function FindingRow({
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Repair Action</Label>
             <Select
-              defaultValue={String(finding.correction?.correctedRepairActionId ?? "")}
+              defaultValue={String(finding.correction?.correctedRepairActionId ?? ACTION_OPTIONS.find(a => a.label.toLowerCase() === finding.repairAction)?.id ?? "")}
               onValueChange={(v) =>
                 v && onChange(finding.findingId, { correctedRepairActionId: parseInt(v) })
               }
             >
-              <SelectTrigger className="h-7 text-xs w-full">
+              <SelectTrigger className="h-7 text-xs w-full capitalize">
                 <SelectValue placeholder={finding.repairAction} />
               </SelectTrigger>
               <SelectContent>
@@ -205,7 +233,7 @@ function FindingRow({
               </SelectContent>
             </Select>
           </div>
-          <div className="sm:col-span-3 space-y-1">
+          <div className="sm:col-span-2 md:col-span-4 space-y-1">
             <Label className="text-xs text-muted-foreground">Note</Label>
             <Input
               className="h-7 text-xs"

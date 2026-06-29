@@ -1,16 +1,24 @@
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 
-// Defer the neon() call to request time so a missing DATABASE_URL during
-// `next build`'s static analysis phase doesn't abort the build.
+// Memoised so a warm serverless invocation reuses the same instance.
+let _db: ReturnType<typeof drizzle> | null = null;
+
 function getDb() {
+  if (_db) return _db;
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is not set");
-  return drizzle(neon(url));
+  _db = drizzle(neon(url));
+  return _db;
 }
 
+// Proxy defers neon() to first property access so a missing DATABASE_URL at
+// build time (static analysis) doesn't abort the build. Methods are bound to
+// the real Drizzle instance so `this` inside them is correct.
 export const db = new Proxy({} as ReturnType<typeof getDb>, {
   get(_target, prop) {
-    return getDb()[prop as keyof ReturnType<typeof getDb>];
+    const instance = getDb();
+    const value = (instance as any)[prop];
+    return typeof value === "function" ? (value as Function).bind(instance) : value;
   },
 });

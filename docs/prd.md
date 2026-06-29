@@ -6,9 +6,7 @@
 
 ## 1. Vision & Goals
 
-Today, the slowest and most expensive part of settling a vehicle-damage claim is the step where a person sits with the photos and works out what the repair will cost. After a Scale Car Insurance policyholder reports an accident and sends in pictures, a claims agent goes through every image individually, estimates the repair cost from experience and reference manuals, and passes the file to a senior adjuster for approval. That can take days, tie up agent time, and produce different results from different agents, which leads the company to over- or under-pay. As it works today, the only way to handle more claims is to hire more people.
-
-*FastTrack* automates the manual review, damage assessment, and estimate generation, and routes each claim toward approval. It turns the policyholder's photos into a priced, confidence-scored draft estimate the agent can confirm or fix in a couple of minutes. The initial claim submission and damage documentation, and the repair and final inspection, stay as they are today.
+*FastTrack* automates the manual review, damage assessment, and estimate generation for vehicle claims, routing each toward approval. It turns a policyholder's photos into a priced, confidence-scored draft estimate the agent can confirm or fix in a couple of minutes. The initial claim submission and final inspection stay as they are today.
 
 For the claims agent, the job shifts from building every estimate from scratch to checking FastTrack's work and handling the calls that need judgment, while the easy claims run automatically.
 
@@ -31,56 +29,46 @@ The main user is the claims agent, who reviews the damage and builds the estimat
 
 ## 3. Key Features
 
-**[P0] Claim intake and photo ingestion.** Open or create a claim with the policy number, vehicle, and accident details, then upload the policyholder's photos. If they don't cover the damage well enough, the system asks for better ones (the four corners, close-ups of each damaged area, plus the VIN and odometer).
+**[P0] Claim intake and photo ingestion.** Open or create a claim with the policy number, vehicle, and accident details, then upload the policyholder's photos. If they don't cover the damage well enough, the system asks for better ones.
 
-**[P0] AI damage assessment.** Computer vision finds the affected parts, says what kind of damage it is (scratch, dent, structural, glass) and how bad, and writes a plain summary per photo and for the claim overall.
+**[P0] AI damage assessment.** Computer vision finds the affected parts, identifies the type of damage (scratch, dent, structural, glass) and severity, and writes a plain summary per photo and for the claim overall.
 
 **[P0] Preliminary estimate generation.** Turns the damage into the repairs needed (fix or replace each part, plus labor), prices them from standard parts-and-labor data, and produces an itemized estimate with a total. If the cost nears the car's value, it flags the claim as possibly not worth fixing.
 
-**[P0] Confidence scoring and triage.** Each finding and the claim overall get a confidence score, plus any specific doubts (for example, "might be hidden structural damage the photo angle doesn't show"). Confidence, estimate size, and fraud flags produce a suggested routing tier, acted on automatically only once auto-approval is on in P1.
+**[P0] Confidence scoring and triage.** Each finding and the claim overall get a confidence score, plus any specific doubts. Confidence, estimate size, and fraud flags produce a suggested routing tier.
 
-**[P0] Agent review and override workspace.** The photo and the AI's findings sit side by side; the agent can accept, edit, add, or reject each line and leave notes. Every AI-detected attribute of a finding — damage type, severity, repair action, and part label — is editable inline. The number that counts is the agent's final estimate, not the AI's.
+**[P0] Agent review and override workspace.** The photo and the AI's findings sit side by side; the agent can accept, edit, add, or reject each line and leave notes. All four AI-detected attributes of each finding — damage type, severity, repair action, and part label — are editable inline. The number that counts is the agent's final estimate, not the AI's.
 
-**[P1] Routing and auto-approval.** High-confidence, low-cost, fraud-clean claims get auto-approved; low-confidence claims are flagged and routed to an agent for closer review; everything else goes to an agent; and high-value, fraud-flagged, or possible total-loss claims always go to a senior adjuster. Agents reviewing `agent_review` or low-confidence claims may escalate to a senior adjuster; claims already routed to a senior adjuster cannot be escalated further.
+**[P1] Routing and auto-approval.** Claims are assigned to one of four tiers: *auto-approved* (high confidence, low cost, clean), *agent review* (standard review), *low confidence* (flagged for closer agent scrutiny), or *senior adjuster* (high-value, fraud-flagged, or possible total loss). Agents reviewing agent-review or low-confidence claims may escalate to a senior adjuster; claims already at senior-adjuster tier cannot be escalated further.
 
 **[P1] Audit trail and explainability.** Every AI output, confidence score, and human action is logged with a timestamp, so the claim can be explained and defended later.
 
-**[P2: not built yet]** Out of scope for now but worth doing later: fraud and anomaly checks (damage that doesn't match the report, old damage passed off as new, edited photos), video and multi-angle capture, checking photos against vehicle data, comparing the estimate to the shop's own quote, and feeding agent corrections back in to keep improving the model.
+**[P2: not built yet]** Fraud and anomaly detection, video and multi-angle capture, comparing the estimate to the shop's quote, and feeding agent corrections back to improve the model.
 
 ## 4. Prioritization Rationale
 
-I'm using three priority levels mapped to the MoSCoW scheme (Must have, Should have, Could have, Won't have). P0 is the Must haves, the things the product can't ship without. P1 is the Should haves, important and next in line, but only worth turning on once P0 has earned trust. P2 is the Could haves: real and worth building, just later rather than in the first version.
+P0 features (intake, assessment, estimate, confidence scoring, and the review workspace) form the smallest version of the loop that actually works. Together they ensure a claim can move from photos to a human decision without any piece missing. In v1 a person reviews every claim, so even before any automation the product is already faster and more consistent.
 
-What makes something P0 is mostly necessity: can a claim still get through the loop, with a person owning the decision, if this piece is missing? If not, it's P0. After that I weigh what depends on what, then value against effort and risk.
-
-That's why five features sit at P0. Together they're the smallest version of the loop that actually works: intake gets the claim and photos in, the assessment and estimate produce something useful, confidence scoring tells the agent which claims to trust, and the review screen lets them correct it. Drop any one and the claim either can't move or isn't safe to act on. In v1 a person reviews every claim, so even before any automation, the product is already faster and more consistent.
-
-Auto-approval is held to P1 on purpose. It's the only step where a claim passes without a person, so it stays gated until v1 has shown the confidence scores hold up in production. It's also where most of the efficiency comes from, which is exactly why it has to earn that trust first. The audit trail waits for the same reason. The P2 work sits on top of a loop that has to function first, and several items carry their own accuracy and compliance questions. One rule runs through all of it: nothing ships if it lets the system deny a claim, or approve a high-value one, without a person.
+Auto-approval is held to P1 because it's the only step where a claim passes without a person — it stays gated until v1 has shown confidence scores hold up in production. The audit trail waits for the same reason. P2 items sit on top of a loop that has to function first. One rule runs through all of it: nothing ships if it lets the system deny a claim, or approve a high-value one, without a person.
 
 ## 5. Success Metrics
 
-**Efficiency.** Average time to produce an estimate, claims handled per agent per day, and the share of claims that clear with no manual review. That last number is the one I'd watch most closely as automation ramps up.
+**Efficiency.** Average time to produce an estimate, claims handled per agent per day, and the share of claims that clear with no manual review.
 
 **Cost.** Cost to assess a claim, and total claims-handling cost per thousand claims.
 
-**Accuracy.** How far estimates land from the final repair cost, how often agents override the AI (and how big those overrides are, which tells me how much they trust it), how often claims get reopened, and whether we're systematically paying too much or too little.
+**Accuracy.** How far estimates land from the final repair cost, how often agents override the AI (and how large those overrides are), how often claims get reopened, and whether we're systematically paying too much or too little.
 
-**Experience.** Time from photo submission to estimate, plus CSAT (Customer Satisfaction Score), a short rating the policyholder gives after the claim. It's the check that the efficiency gains actually reach the customer, and that faster, automated handling is improving the experience rather than quietly degrading it.
+**Experience.** Time from photo submission to estimate, plus CSAT — a short rating the policyholder gives after the claim.
 
-**Guardrails.** Whether the confidence scores are honest (does 90% confidence actually mean right about 90% of the time), the rate of claims auto-approved that shouldn't have been (capped, with a ceiling we hold to), the dispute rate, and once fraud detection ships, how much fraud we catch.
-
-These guardrails can block a launch on their own. A version that's faster but waves through claims it shouldn't is not an improvement.
+**Guardrails.** Whether confidence scores are calibrated (does 90% confidence mean right about 90% of the time), the rate of claims auto-approved that shouldn't have been, and the dispute rate. These can block a launch on their own.
 
 ## 6. AI Integration & Human-in-the-Loop
 
-**How the AI works.** I'd build this as a few stages rather than one model doing everything in a single pass. First, check the photos are usable: clear, complete, and not edited. Then a vision model finds the vehicle and the damaged parts and rates how bad each one is. The system maps that damage to the repairs needed, prices them against standard parts-and-labor data, and checks whether the cost is nearing the car's value. Finally, a language model writes a readable summary and a suggested next step. Each stage carries its own confidence, and if any stage isn't sure, the claim goes to a person.
+**How the AI works.** A staged pipeline handles each claim: first, check that photos are usable; then a vision model finds damaged parts and rates severity; the system prices repairs from parts-and-labor data and flags possible total losses; a language model writes a readable summary and suggested next step. Each stage carries its own confidence, and if any stage isn't sure, the claim goes to a person.
 
-**Models.** I'd start with a strong general model so the product ships fast, then specialize it as labeled claim data builds up. The human stays in the loop for a simple reason: accuracy holds up on clear damage but drops on the hard cases (small dents, hidden or structural damage, bad photos), and those are exactly the claims you can't afford to get wrong. That's a permanent design choice, not a stopgap.
-
-**How people and the AI split the work.** Confidence, the size of the estimate, and any fraud flags decide where each claim goes. High-confidence, low-cost, clean claims get auto-approved, with the agent spot-checking a sample. Everything else goes to the agent, who gets the AI's assessment as a draft to confirm or change. High-value claims always go to a senior adjuster, however confident the model is. The AI never denies a claim on its own and never has the final say on an expensive one. And every agent correction becomes training data, so the routine review work quietly makes the model better over time.
-
-**Fairness, privacy, and compliance.** A few things I'd watch from day one. Accuracy has to hold across vehicle types, regions, and price ranges, so the model doesn't quietly disadvantage some customers. Every assessment should be explainable, and a policyholder can always ask for a human to look again. Personal details in photos, and any location data, get clear retention limits. To keep agents from rubber-stamping the AI, we track confidence and override patterns. And the system is built to meet insurers' fairness and transparency rules, with the audit trail as the record of how each decision was made.
+**How people and the AI split the work.** Confidence, estimate size, and fraud flags decide the routing tier. High-confidence, low-cost, clean claims get auto-approved, with agents spot-checking a sample. Everything else goes to an agent, who gets the AI's assessment as a draft to confirm or change. High-value claims always go to a senior adjuster, however confident the model is. The AI never denies a claim on its own and never has the final say on an expensive one.
 
 ---
 
-**Prototype scope.** The prototype covers the agent's path through the loop: open a claim, upload damage photos, and the AI returns a structured assessment (damaged parts, severity, a rough estimate range, a confidence score, and a suggested next step). The agent accepts or overrides each finding, and the claim routes to one of three places (auto-approved, agent review, or senior adjuster) based on confidence and cost. The demo shows the whole loop including auto-approval, though a real rollout would keep auto-approval off until the confidence scores prove out. The AI step can run against a real vision model or a mock, so the workflow is the same either way. The prototype prioritizes a clear, intuitive flow for the agent over visual polish: the experience should make the assessment easy to read and the review and override obvious, so the agent can move through a claim quickly and stay in control.
+**Prototype scope.** The prototype covers the agent's path through the loop: open a claim, upload damage photos, and the AI returns a structured assessment (damaged parts, severity, a rough estimate range, a confidence score, and a suggested next step). The agent accepts or overrides each finding, and the claim routes to one of four tiers (auto-approved, agent review, low confidence, or senior adjuster) based on confidence and cost. The demo shows the full loop including auto-approval, though a real rollout would keep auto-approval off until confidence scores prove out. The AI step can run against a real vision model or a mock, so the workflow is the same either way.

@@ -1,6 +1,6 @@
 /**
  * Seed script — inserts lookup data, demo users, vehicles, and the four
- * scenario claims, then uploads placeholder photos to Vercel Blob.
+ * scenario claims with curated Pexels demo photos.
  *
  * Run with: npm run db:seed
  */
@@ -10,7 +10,6 @@ dotenv.config();
 
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
-import { put } from "@vercel/blob";
 import { eq } from "drizzle-orm";
 
 import {
@@ -55,23 +54,9 @@ const PRICING: Record<string, Record<string, { partCost: string; laborHours: str
   },
 };
 
-// ── Upload a car-damage photo to Blob ─────────────────────────────────────────
-async function uploadCarPhoto(
-  filename: string,
-  tags: string,
-  lockSeed: number
-): Promise<string> {
-  const url = `https://loremflickr.com/800/600/${tags}?lock=${lockSeed}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to fetch car photo: ${url}`);
-  const blob = await res.blob();
-  const result = await put(`demo/${filename}`, blob, {
-    access: "public",
-    allowOverwrite: true,
-    token: process.env.BLOB_READ_WRITE_TOKEN!,
-  });
-  return result.url;
-}
+// ── Curated Pexels photo URL ──────────────────────────────────────────────────
+const px = (id: number) =>
+  `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop`;
 
 async function main() {
   console.log("⏳  Seeding database…");
@@ -231,28 +216,17 @@ async function main() {
   const vehicleList = await db.select().from(vehicles);
   const vehicleByVin = Object.fromEntries(vehicleList.map(v => [v.vin, v]));
 
-  // ── 8. Upload car-specific demo photos ──────────────────────────────────────
-  console.log("📸  Uploading demo photos to Vercel Blob…");
-
-  // Each claim gets 4 photos with tags matching the damage scenario
-  const photoScenarios = [
-    { label: "CLM-001 (minor scratch/dent)", tags: "car,scratch,parking", lockStart: 1 },
-    { label: "CLM-002 (sideswipe dents)",    tags: "car,damage,dent",     lockStart: 5 },
-    { label: "CLM-003 (frontal crash)",       tags: "car,crash,accident",  lockStart: 9 },
-    { label: "CLM-004 (rear-end collision)",  tags: "car,collision,rear",  lockStart: 13 },
+  // ── 8. Curated demo photos (Pexels CDN, no upload needed) ──────────────────
+  const photoUrls: string[][] = [
+    // CLM-001: Honda Civic — minor parking lot scratch/dent
+    [33749906, 9956770, 9581527, 10747780].map(px),
+    // CLM-002: Toyota Camry — sideswipe, moderate dents
+    [24960483, 28443036, 2265634, 29879066].map(px),
+    // CLM-003: Ford F-150 — severe frontal collision
+    [35784044, 11870919, 11627936, 5351114].map(px),
+    // CLM-004: BMW 3 Series — rear-end, fraud-flagged
+    [6442699, 1230677, 10747780, 33749906].map(px),
   ];
-
-  const photoUrls: string[][] = [];
-  for (let i = 0; i < photoScenarios.length; i++) {
-    const { label, tags, lockStart } = photoScenarios[i];
-    console.log(`  📷  ${label}…`);
-    const urls: string[] = [];
-    for (let j = 0; j < 4; j++) {
-      const url = await uploadCarPhoto(`claim-${i + 1}-photo-${j + 1}.jpg`, tags, lockStart + j);
-      urls.push(url);
-    }
-    photoUrls.push(urls);
-  }
 
   // ── 9. Seed claims ──────────────────────────────────────────────────────────
 

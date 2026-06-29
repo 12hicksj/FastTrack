@@ -90,6 +90,7 @@ export default function NewClaimPage() {
   const [customerId, setCustomerId] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [vehicleId, setVehicleId] = useState("");
+  const [vehicleName, setVehicleName] = useState("");
   const [incidentDate, setIncidentDate] = useState("");
   const [description, setDescription] = useState("");
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
@@ -128,12 +129,16 @@ export default function NewClaimPage() {
     const id = val ?? "";
     setCustomerId(id);
     setVehicleId("");
+    setVehicleName("");
     const c = customers.find((u) => String(u.userId) === id);
     setCustomerName(c ? `${c.firstName} ${c.lastName}` : "");
   }
 
   function handleVehicleChange(val: string | null) {
-    setVehicleId(val ?? "");
+    const id = val ?? "";
+    setVehicleId(id);
+    const v = vehicles.find((v) => String(v.vehicleId) === id);
+    setVehicleName(v ? `${v.year} ${v.make} ${v.model}` : "");
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -246,7 +251,7 @@ export default function NewClaimPage() {
                     <SelectValue placeholder="Select a customer…" />
                   )}
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent alignItemWithTrigger={false}>
                   {customers.map((c) => (
                     <SelectItem key={c.userId} value={String(c.userId)}>
                       <span className="flex flex-col gap-0.5 py-0.5">
@@ -287,15 +292,21 @@ export default function NewClaimPage() {
                 disabled={isAgent && !customerId}
               >
                 <SelectTrigger id="vehicle" className="w-full">
-                  <SelectValue
-                    placeholder={
-                      isAgent && !customerId
-                        ? "Select a customer first"
-                        : "Select a vehicle…"
-                    }
-                  />
+                  {vehicleId && vehicleName ? (
+                    <span className="flex flex-1 text-left text-sm">
+                      {vehicleName}
+                    </span>
+                  ) : (
+                    <SelectValue
+                      placeholder={
+                        isAgent && !customerId
+                          ? "Select a customer first"
+                          : "Select a vehicle…"
+                      }
+                    />
+                  )}
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent alignItemWithTrigger={false}>
                   {vehicles.map((v) => (
                     <SelectItem key={v.vehicleId} value={String(v.vehicleId)}>
                       {v.year} {v.make} {v.model}

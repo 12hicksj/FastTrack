@@ -13,6 +13,7 @@ import {
 import { buttonVariants } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
 import type { SessionUser } from "@/auth";
+import { BP } from "@/lib/api-path";
 
 interface DemoUser {
   userId: number;
@@ -40,12 +41,12 @@ export function RoleSwitcher({ currentUser }: { currentUser: SessionUser }) {
 
   const { data: users } = useQuery<DemoUser[]>({
     queryKey: ["demo-users"],
-    queryFn: () => fetch("/api/users").then((r) => r.json()),
+    queryFn: () => fetch(`${BP}/api/users`).then((r) => r.json()),
     staleTime: Infinity,
   });
 
   async function switchTo(userId: number) {
-    await fetch("/api/auth/switch", {
+    await fetch(`${BP}/api/auth/switch`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId }),

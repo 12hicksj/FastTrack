@@ -55,13 +55,15 @@ const PRICING: Record<string, Record<string, { partCost: string; laborHours: str
   },
 };
 
-// ── Upload a placeholder image to Blob ────────────────────────────────────────
-async function uploadPlaceholder(
+// ── Upload a car-damage photo to Blob ─────────────────────────────────────────
+async function uploadCarPhoto(
   filename: string,
-  picsumSeed: number
+  tags: string,
+  lockSeed: number
 ): Promise<string> {
-  const res = await fetch(`https://picsum.photos/seed/${picsumSeed}/800/600`);
-  if (!res.ok) throw new Error(`Failed to fetch placeholder image ${picsumSeed}`);
+  const url = `https://loremflickr.com/800/600/${tags}?lock=${lockSeed}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch car photo: ${url}`);
   const blob = await res.blob();
   const result = await put(`demo/${filename}`, blob, {
     access: "public",
@@ -228,15 +230,24 @@ async function main() {
   const vehicleList = await db.select().from(vehicles);
   const vehicleByVin = Object.fromEntries(vehicleList.map(v => [v.vin, v]));
 
-  // ── 8. Upload placeholder photos ────────────────────────────────────────────
+  // ── 8. Upload car-specific demo photos ──────────────────────────────────────
   console.log("📸  Uploading demo photos to Vercel Blob…");
 
+  // Each claim gets 4 photos with tags matching the damage scenario
+  const photoScenarios = [
+    { label: "CLM-001 (minor scratch/dent)", tags: "car,scratch,parking", lockStart: 1 },
+    { label: "CLM-002 (sideswipe dents)",    tags: "car,damage,dent",     lockStart: 5 },
+    { label: "CLM-003 (frontal crash)",       tags: "car,crash,accident",  lockStart: 9 },
+    { label: "CLM-004 (rear-end collision)",  tags: "car,collision,rear",  lockStart: 13 },
+  ];
+
   const photoUrls: string[][] = [];
-  for (let claimIdx = 0; claimIdx < 4; claimIdx++) {
+  for (let i = 0; i < photoScenarios.length; i++) {
+    const { label, tags, lockStart } = photoScenarios[i];
+    console.log(`  📷  ${label}…`);
     const urls: string[] = [];
-    for (let photoIdx = 0; photoIdx < 4; photoIdx++) {
-      const seed = claimIdx * 10 + photoIdx + 1;
-      const url = await uploadPlaceholder(`claim-${claimIdx + 1}-photo-${photoIdx + 1}.jpg`, seed);
+    for (let j = 0; j < 4; j++) {
+      const url = await uploadCarPhoto(`claim-${i + 1}-photo-${j + 1}.jpg`, tags, lockStart + j);
       urls.push(url);
     }
     photoUrls.push(urls);

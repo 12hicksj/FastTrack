@@ -88,6 +88,7 @@ export default function NewClaimPage() {
     session?.role === "agent" || session?.role === "supervisor";
 
   const [customerId, setCustomerId] = useState("");
+  const [customerName, setCustomerName] = useState("");
   const [vehicleId, setVehicleId] = useState("");
   const [incidentDate, setIncidentDate] = useState("");
   const [description, setDescription] = useState("");
@@ -122,10 +123,13 @@ export default function NewClaimPage() {
 
   const selectedVehicle = vehicles.find((v) => String(v.vehicleId) === vehicleId);
 
-  // Reset vehicle when customer changes
+  // Reset vehicle when customer changes; track name for trigger display
   function handleCustomerChange(val: string | null) {
-    setCustomerId(val ?? "");
+    const id = val ?? "";
+    setCustomerId(id);
     setVehicleId("");
+    const c = customers.find((u) => String(u.userId) === id);
+    setCustomerName(c ? `${c.firstName} ${c.lastName}` : "");
   }
 
   function handleVehicleChange(val: string | null) {
@@ -195,6 +199,7 @@ export default function NewClaimPage() {
     }
   }
 
+  const today = new Date().toISOString().split("T")[0];
   const photosMissing = Math.max(0, 4 - photos.length);
   const canSubmit =
     vehicleId &&
@@ -233,13 +238,25 @@ export default function NewClaimPage() {
                 onValueChange={handleCustomerChange}
               >
                 <SelectTrigger id="customer" className="w-full">
-                  <SelectValue placeholder="Select a customer…" />
+                  {customerId && customerName ? (
+                    <span className="flex flex-1 text-left text-sm">
+                      {customerName}
+                    </span>
+                  ) : (
+                    <SelectValue placeholder="Select a customer…" />
+                  )}
                 </SelectTrigger>
                 <SelectContent>
                   {customers.map((c) => (
                     <SelectItem key={c.userId} value={String(c.userId)}>
-                      {c.firstName} {c.lastName}{" "}
-                      <span className="text-muted-foreground">— {c.email}</span>
+                      <span className="flex flex-col gap-0.5 py-0.5">
+                        <span className="text-sm font-medium leading-none">
+                          {c.firstName} {c.lastName}
+                        </span>
+                        <span className="text-xs text-muted-foreground leading-none">
+                          {c.email}
+                        </span>
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -317,6 +334,7 @@ export default function NewClaimPage() {
                 id="incident-date"
                 type="date"
                 required
+                max={today}
                 value={incidentDate}
                 onChange={(e) => setIncidentDate(e.target.value)}
                 className="w-fit"

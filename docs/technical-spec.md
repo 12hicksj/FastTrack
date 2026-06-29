@@ -160,6 +160,7 @@ erDiagram
     AGENT_REVIEWS ||--o{ FINDING_CORRECTIONS : records
     REVIEW_DECISIONS ||--o{ AGENT_REVIEWS : classifies
     ASSESSMENT_FINDINGS ||--o{ FINDING_CORRECTIONS : "corrected in"
+    DAMAGE_TYPES ||--o{ FINDING_CORRECTIONS : "corrected to"
     SEVERITY_LEVELS ||--o{ FINDING_CORRECTIONS : "corrected to"
     REPAIR_ACTIONS ||--o{ FINDING_CORRECTIONS : "corrected to"
     CLAIMS ||--o{ ROUTING_DECISIONS : routes
@@ -196,6 +197,7 @@ erDiagram
         string model
         int year
         numeric value
+        string license_plate
     }
     CLAIM_STATUSES {
         int status_id PK
@@ -288,6 +290,7 @@ erDiagram
         int correction_id PK
         int review_id FK
         int finding_id FK
+        int corrected_damage_type_id FK
         int corrected_severity_id FK
         int corrected_repair_action_id FK
         string corrected_part_label
@@ -351,7 +354,7 @@ Nothing derivable is duplicated. Customer names live only in `users` and are rea
 
 `agent_reviews` and `routing_decisions` each carry `claim_id` even though it is reachable through their `assessment_id`. That is deliberate, not duplication: the claim is the aggregate these records belong to, so they reference it directly as their parent link and as the key they are queried and indexed by, and it stays stable across assessment versions. That is different from a value reachable through a sibling, like the policy behind a claim's vehicle, which is why a claim does not store its own `policy_id`.
 
-Agent corrections are stored as a snapshot. When an agent changes a finding, `finding_corrections` records the corrected values for that finding next to the original in `assessment_findings`, so the before-and-after pair is preserved without a row per changed field. The per-field delta can be computed from that pair when needed. Production would capture field-level deltas directly to feed model retraining; the prototype keeps the lighter snapshot and defers that.
+Agent corrections are stored as a snapshot. When an agent changes a finding, `finding_corrections` records the corrected values for that finding next to the original in `assessment_findings`, so the before-and-after pair is preserved without a row per changed field. Agents can override the AI-detected damage type (`corrected_damage_type_id`), severity (`corrected_severity_id`), repair action (`corrected_repair_action_id`), and part label (`corrected_part_label`). The per-field delta can be computed from that pair when needed. Production would capture field-level deltas directly to feed model retraining; the prototype keeps the lighter snapshot and defers that.
 
 Photo files are not stored in the database. `claim_photos.storage_url` holds a reference to the file in Vercel Blob, which keeps large binaries out of Postgres and lets the database stay lean.
 
@@ -397,9 +400,12 @@ The assessment response carries the findings and confidence only. Pricing and th
 
 The routing module reads confidence, estimate size, and any fraud flag, then assigns a tier:
 
-- **High confidence, low cost, no fraud flag → auto-approved**, with a sample held back for an agent to spot-check.
-- **Anything else → agent review**, with the assessment as an editable draft.
-- **High-value claims → supervisor**, always, regardless of confidence. "High-value" is a cost threshold held in `routing_thresholds`; in production a supervisor sets it, and in the prototype it is seeded.
+- **High confidence, low cost, no fraud flag → `auto_approved`**, with a sample held back for an agent to spot-check.
+- **Low confidence → `confidence_below_threshold`**, routed to an agent for review. The agent may approve, deny, or escalate to a senior adjuster.
+- **Everything else → `agent_review`**, with the assessment as an editable draft. The agent may approve, deny, or escalate to a senior adjuster.
+- **High-value claims, fraud-flagged claims, or possible total loss → `senior_adjuster`**, always, regardless of confidence. "High-value" is a cost threshold held in `routing_thresholds`; in production a supervisor sets it, and in the prototype it is seeded. Claims already at this tier cannot be escalated further.
+
+The `triggered_by` field on `routing_decisions` records the specific signal that determined the tier: `fraud_flag`, `possible_total_loss`, `estimate_exceeds_threshold`, `confidence_below_threshold`, or `confidence_and_cost_within_threshold`.
 
 **No claim is ever auto-denied.** The system can flag a claim for investigation (low confidence, fraud signal, damage that does not match the report) and route it to a person, but a denial is always a human decision, recorded as an `agent_review` outcome. A wrong auto-approval is a bounded cost; a wrong auto-denial harms a customer and carries regulatory risk, so the two are not automated symmetrically. Denials also turn on coverage and liability, which this product does not assess.
 
@@ -411,8 +417,8 @@ Each P0 feature is done when its criteria pass against the running prototype.
 - **AI assessment.** Given a claim with valid photos, running the assessment returns per-finding and overall results (part, damage type, severity) and a plain summary, persisted against the claim.
 - **Estimate.** Given findings, the system produces an itemized estimate (parts and labor) with a total, and derives possible total loss when the cost approaches the vehicle's value.
 - **Confidence and triage.** Given an assessment, every finding and the claim carry a confidence value and any uncertainty notes, and routing combines that confidence with the estimate total into a recommended tier shown to the agent. Auto-approval acts on that tier only once enabled at P1.
-- **Review and override.** Given an assessment, when the agent accepts, edits, or overrides a finding, the change persists, the agent's final estimate is stored as authoritative, and the corrected finding is written to `finding_corrections` as a snapshot alongside the original.
-- **Routing and auto-approval (P1).** Given thresholds, a high-confidence, low-cost, fraud-clean claim auto-approves; everything else routes to an agent; high-value always routes to a supervisor; no claim is auto-denied.
+- **Review and override.** Given an assessment, when the agent accepts, edits, or overrides a finding (damage type, severity, repair action, or part label), the change persists, the agent's final estimate is stored as authoritative, and the corrected finding is written to `finding_corrections` as a snapshot alongside the original. When the decision is Deny, the final total field is hidden and a zero total is recorded.
+- **Routing and auto-approval (P1).** Given thresholds, a high-confidence, low-cost, fraud-clean claim auto-approves; a low-confidence claim routes to an agent as `confidence_below_threshold`; everything else routes to an agent as `agent_review`; high-value, fraud-flagged, or possible total-loss claims always route to a senior adjuster; no claim is auto-denied.
 - **Audit (P1).** Given any AI output or human action, an `audit_events` row is written with actor, action, entity, and timestamp.
 
 ## 12. Traceability
@@ -442,8 +448,8 @@ These are the implementation choices the build follows, so the prototype comes o
 - **Estimate pricing.** The estimate module prices each finding in code: a line item is `part_cost + labor_hours * labor_rate`, with a fixed shop labor rate (for example $60 per hour) and base part cost and hours keyed to severity and repair-versus-replace (minor-and-repair small, severe-and-replace large). A real parts-and-labor rate table is the production path. The seed claims' findings are tuned so their totals land in the intended routing bands: under $2,500 for the clean auto-approve claim, $10,000 or more for the high-value supervisor claim.
 - **Default thresholds.** `routing_thresholds` are seeded so those claims land where intended: auto-approve when overall confidence is at least 0.90 and the estimate is at most $2,500; supervisor when the estimate is high-value ($10,000 or more) or total loss or fraud-flagged; agent review otherwise.
 - **Assessment versioning.** The prototype creates one current assessment per claim. `version` and `is_current` exist so a re-assessment can be added later (new version, flip `is_current`) without a schema change, but the re-run flow is not built.
-- **Endpoint surface.** Each route is validated by a Zod schema in `shared/`: `POST /api/claims` (create with photos), `POST /api/claims/:id/assess` (runs assessment, estimate, and the routing suggestion), `GET /api/claims/:id` (full claim view), `POST /api/claims/:id/review` (agent decision, corrections, final estimate, and a routing refresh), and `GET /api/claims` (role-scoped queue).
-- **Config.** A `.env.example` lists the Neon database URL, the Vercel Blob token, the vision model key, a mock-vision toggle, and the auth secret.
+- **Endpoint surface.** Each route is validated by a Zod schema in `shared/`: `POST /api/claims` (create with photos), `POST /api/claims/:id/assess` (runs assessment, estimate, and routing), `GET /api/claims/:id` (full claim view), `POST /api/claims/:id/review` (agent decision, corrections, final estimate), `GET /api/claims` (role-scoped queue), `GET /api/vehicles` (vehicles for the current user or all vehicles for agents), `GET /api/users` (user list for the agent customer-picker), and `POST /api/upload` (generates a short-lived Vercel Blob client token for direct browser-to-Blob photo uploads).
+- **Config.** A `.env.example` lists the Neon database URL, the Vercel Blob read/write token (`BLOB_READ_WRITE_TOKEN`), the vision model key, a mock-vision toggle, and the auth secret. `BLOB_READ_WRITE_TOKEN` must also be set in the Vercel project environment variables; the upload handler returns a 503 if it is absent.
 - **Tests.** Unit tests cover the routing rules and the estimate math, run from a single command. Enough to show rigor without expanding the build.
 - **Mocked or deferred.** The vision model is mocked, confidence is a transparent heuristic rather than a calibrated model, and the assessment runs synchronously (no queue). Deployment is Vercel's GitHub integration with migrations applied by a drizzle-kit script; the import-boundary lint and a fuller CI pipeline are production additions. Each has its production form described in the relevant section.
 
@@ -451,9 +457,9 @@ These are the implementation choices the build follows, so the prototype comes o
 
 The prototype ships these views, built from the shared component library:
 
-- **Queue.** The role-scoped list of claims (an agent sees their assigned queue, a supervisor the team's, a customer their own), each row showing claim number, status, tier, and estimate total.
-- **Claim detail and review.** For a claim that is `ready_for_assessment`, the agent runs the assessment from here (a button that calls `/assess`, with a loading state while it runs synchronously). Once assessed and routed, the view shows the photos, the AI findings (part, damage type, severity, repair action, per-finding confidence, any uncertainty note), the overall confidence, the line-item estimate and total, and the possible-total-loss flag. The agent can accept, edit, or override each finding (severity and repair action through dropdowns, which writes `finding_corrections`), set the final estimate, and take the routing action (approve, deny, escalate). A claim whose assessment failed shows as needing review rather than as an error.
-- **Intake.** Create a claim by selecting an existing customer and then one of that customer's vehicles (read from the seeded `policies` and `vehicles` records, which pre-fills make, model, year, VIN, and the value the total-loss check later uses), then attach photos, with the minimum-photos check from the acceptance criteria before it becomes `ready_for_assessment`. This is a lightweight picker over seeded data, not a customer or vehicle management screen.
+- **Queue.** The role-scoped list of claims (an agent sees their assigned queue, a supervisor the team's, a customer their own). Each row shows claim number, status, routing tier, AI estimate, and (for approved claims) the agent-set approved total. Columns are sortable; the list is filterable by status and routing tier with a free-text search across claim number, vehicle, and customer. Agents and supervisors see a Customer column showing the vehicle's policy holder, regardless of who filed the claim.
+- **Claim detail and review.** For a claim that is `ready_for_assessment`, the agent runs the assessment from here (a button that calls `/assess`, with a loading state while it runs synchronously). Once assessed and routed, the view shows the photos, the AI findings (part, damage type, severity, repair action, per-finding confidence, any uncertainty note), the overall confidence, the line-item estimate and total, and the possible-total-loss flag. The agent can accept, edit, or override each finding inline — damage type, severity, repair action, and part label are all editable through dropdowns and a text field, which writes `finding_corrections`. The review form shows the routing tier and its trigger reason in human-readable form. The agent sets the final estimate and chooses a decision: Approve, Deny, or (for `agent_review` and `confidence_below_threshold` tier claims not yet escalated) Escalate to a senior adjuster. The final total field is hidden when the decision is Deny. A claim whose assessment failed shows as needing review rather than as an error.
+- **Intake.** Create a claim by selecting an existing customer and then one of that customer's vehicles (agents pick from all customers; customers see only their own vehicles). Vehicle selection pre-fills make, model, year, VIN, plate, and the value the total-loss check later uses. Requires at least four photos (front, rear, left side, right side) uploaded to Vercel Blob before submission. This is a lightweight picker over seeded data, not a customer or vehicle management screen.
 - **Role switcher.** A simple control to switch between the seeded customer, agent, and supervisor accounts, standing in for login. The customer view is read-only status plus a request-human-review action.
 
 Confidence is shown as both the number and a simple visual cue (for example a colored band) so low-confidence findings are obvious at a glance.
@@ -478,7 +484,7 @@ Lookup values:
 - `damage_types`: scratch, dent, structural, glass
 - `severity_levels`: minor (1), moderate (2), severe (3)
 - `repair_actions`: repair, replace
-- `routing_tiers`: auto_approved, agent_review, senior_adjuster
+- `routing_tiers`: auto_approved, agent_review, confidence_below_threshold, senior_adjuster
 - `review_decisions`: approved, denied, escalated
 
 ## 14. Non-functional requirements

@@ -1,13 +1,15 @@
 const CHIP: Record<string, { bg: string; text: string; dot: string }> = {
-  auto_approved:   { bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500" },
-  agent_review:    { bg: "bg-amber-50",   text: "text-amber-700",   dot: "bg-amber-500"   },
-  senior_adjuster: { bg: "bg-rose-50",    text: "text-rose-700",    dot: "bg-rose-500"    },
+  auto_approved:              { bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500" },
+  agent_review:               { bg: "bg-amber-50",   text: "text-amber-700",   dot: "bg-amber-500"   },
+  senior_adjuster:            { bg: "bg-rose-50",    text: "text-rose-700",    dot: "bg-rose-500"    },
+  confidence_below_threshold: { bg: "bg-gray-100",   text: "text-gray-600",    dot: "bg-gray-400"    },
 };
 
 const LABEL: Record<string, string> = {
-  auto_approved:   "Auto-approve",
-  agent_review:    "Agent review",
-  senior_adjuster: "Senior adjuster",
+  auto_approved:              "Auto-Approved",
+  agent_review:               "Agent Review",
+  senior_adjuster:            "Senior Adjuster",
+  confidence_below_threshold: "Low Confidence",
 };
 
 export function TierBadge({ tier }: { tier: string }) {

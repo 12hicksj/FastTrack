@@ -25,6 +25,7 @@ erDiagram
     AGENT_REVIEWS ||--o{ FINDING_CORRECTIONS : records
     REVIEW_DECISIONS ||--o{ AGENT_REVIEWS : classifies
     ASSESSMENT_FINDINGS ||--o{ FINDING_CORRECTIONS : "corrected in"
+    DAMAGE_TYPES ||--o{ FINDING_CORRECTIONS : "corrected to"
     SEVERITY_LEVELS ||--o{ FINDING_CORRECTIONS : "corrected to"
     REPAIR_ACTIONS ||--o{ FINDING_CORRECTIONS : "corrected to"
     CLAIMS ||--o{ ROUTING_DECISIONS : routes
@@ -61,6 +62,7 @@ erDiagram
         string model
         int year
         numeric value
+        string license_plate
     }
     CLAIM_STATUSES {
         int status_id PK
@@ -153,6 +155,7 @@ erDiagram
         int correction_id PK
         int review_id FK
         int finding_id FK
+        int corrected_damage_type_id FK
         int corrected_severity_id FK
         int corrected_repair_action_id FK
         string corrected_part_label

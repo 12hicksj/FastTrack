@@ -135,6 +135,8 @@ export const ClaimSummarySchema = z.object({
   status: z.string(),
   routingTier: z.string().nullable(),
   estimateTotal: z.string().nullable(),
+  reviewFinalTotal: z.string().nullable(),
+  reviewDecision: z.string().nullable(),
   incidentDate: z.string(),
   vehicleMake: z.string(),
   vehicleModel: z.string(),

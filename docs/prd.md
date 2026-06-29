@@ -39,9 +39,9 @@ The main user is the claims agent, who reviews the damage and builds the estimat
 
 **[P0] Confidence scoring and triage.** Each finding and the claim overall get a confidence score, plus any specific doubts (for example, "might be hidden structural damage the photo angle doesn't show"). Confidence, estimate size, and fraud flags produce a suggested routing tier, acted on automatically only once auto-approval is on in P1.
 
-**[P0] Agent review and override workspace.** The photo and the AI's findings sit side by side; the agent can accept, edit, add, or reject each line and leave notes. The number that counts is the agent's final estimate, not the AI's.
+**[P0] Agent review and override workspace.** The photo and the AI's findings sit side by side; the agent can accept, edit, add, or reject each line and leave notes. Every AI-detected attribute of a finding — damage type, severity, repair action, and part label — is editable inline. The number that counts is the agent's final estimate, not the AI's.
 
-**[P1] Routing and auto-approval.** High-confidence, low-cost, fraud-clean claims get auto-approved; everything else goes to an agent, and high-value claims always go to a senior adjuster.
+**[P1] Routing and auto-approval.** High-confidence, low-cost, fraud-clean claims get auto-approved; low-confidence claims are flagged and routed to an agent for closer review; everything else goes to an agent; and high-value, fraud-flagged, or possible total-loss claims always go to a senior adjuster. Agents reviewing `agent_review` or low-confidence claims may escalate to a senior adjuster; claims already routed to a senior adjuster cannot be escalated further.
 
 **[P1] Audit trail and explainability.** Every AI output, confidence score, and human action is logged with a timestamp, so the claim can be explained and defended later.
 

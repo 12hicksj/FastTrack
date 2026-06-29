@@ -39,12 +39,13 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const TIER_LABELS: Record<string, string> = {
-  auto_approved:   "Auto-approve",
-  agent_review:    "Agent review",
-  senior_adjuster: "Senior adjuster",
+  auto_approved:              "Auto-Approved",
+  agent_review:               "Agent Review",
+  senior_adjuster:            "Senior Adjuster",
+  confidence_below_threshold: "Low Confidence",
 };
 
-type SortKey = "claimNumber" | "incidentDate" | "estimateTotal" | "status" | "routingTier";
+type SortKey = "claimNumber" | "incidentDate" | "estimateTotal" | "reviewFinalTotal" | "status" | "routingTier";
 
 function sortClaims(claims: ClaimSummary[], key: SortKey, dir: "asc" | "desc"): ClaimSummary[] {
   return [...claims].sort((a, b) => {
@@ -59,6 +60,10 @@ function sortClaims(claims: ClaimSummary[], key: SortKey, dir: "asc" | "desc"): 
       case "estimateTotal":
         aVal = a.estimateTotal ? parseFloat(a.estimateTotal) : -1;
         bVal = b.estimateTotal ? parseFloat(b.estimateTotal) : -1;
+        break;
+      case "reviewFinalTotal":
+        aVal = a.reviewFinalTotal ? parseFloat(a.reviewFinalTotal) : -1;
+        bVal = b.reviewFinalTotal ? parseFloat(b.reviewFinalTotal) : -1;
         break;
       default: return 0;
     }
@@ -293,14 +298,15 @@ export default function ClaimsQueuePage() {
                 </th>
                 <SortTh label="Status"   sortK="status"        activeKey={sortKey} dir={sortDir} onSort={handleSort} />
                 <SortTh label="Routing"  sortK="routingTier"   activeKey={sortKey} dir={sortDir} onSort={handleSort} />
-                <SortTh label="Estimate" sortK="estimateTotal"  activeKey={sortKey} dir={sortDir} onSort={handleSort} align="right" />
-                <SortTh label="Date"     sortK="incidentDate"  activeKey={sortKey} dir={sortDir} onSort={handleSort} />
+                <SortTh label="Estimate" sortK="estimateTotal"      activeKey={sortKey} dir={sortDir} onSort={handleSort} align="right" />
+                <SortTh label="Approved" sortK="reviewFinalTotal"   activeKey={sortKey} dir={sortDir} onSort={handleSort} align="right" />
+                <SortTh label="Date"     sortK="incidentDate"       activeKey={sortKey} dir={sortDir} onSort={handleSort} />
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {processed.map((c) => (
                 <tr key={c.claimId} className="hover:bg-muted/20 transition-colors">
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <Link
                       href={`/claims/${c.claimId}`}
                       className="font-mono text-sm font-medium hover:underline underline-offset-2 flex items-center gap-1.5"
@@ -326,6 +332,7 @@ export default function ClaimsQueuePage() {
                     {c.routingTier ? <TierBadge tier={c.routingTier} /> : <span className="text-muted-foreground">—</span>}
                   </td>
                   <td className="px-4 py-3 text-right">{formatMoney(c.estimateTotal)}</td>
+                  <td className="px-4 py-3 text-right">{formatMoney(c.reviewFinalTotal)}</td>
                   <td className="px-4 py-3 text-muted-foreground tabular-nums">
                     {new Date(c.incidentDate).toLocaleDateString("en-US", {
                       month: "short",

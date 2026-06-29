@@ -41,17 +41,23 @@ Route handlers in `app/api/` stay thin: they validate input against a Zod schema
 | PRD feature | Spec section | Status |
 |---|---|---|
 | Claim intake and photo ingestion | §13 Screens / Intake | Built |
+| Agent files claim on behalf of customer | §13 Screens / Intake | Built — agent picks customer then that customer's vehicles |
+| Photo upload to Vercel Blob | §13 Config | Built — browser uploads direct to Blob via signed token |
 | Automated assessment on claim submission | §9 AI integration | Built — runs immediately on every new claim |
 | AI damage assessment — mock vision | §9 AI integration | Built (`MOCK_VISION=true`, default) |
 | AI damage assessment — real vision (Claude API) | §9 AI integration | Built — `MOCK_VISION=false` sends all photos to `claude-opus-4-8` |
 | Image quality gate | §9 AI integration | Built — Claude rates each photo; flags written to DB |
 | Cross-photo aggregation | §9 AI integration | Built — single Claude call sees all angles at once |
 | Preliminary estimate generation | §13 Estimate pricing | Built — vehicle-aware pricing (make/year multipliers) |
-| Confidence scoring and triage | §10 Routing logic | Built |
-| Agent review and override workspace | §13 Screens / Claim detail | Built |
+| Confidence scoring and triage | §10 Routing logic | Built — includes `confidence_below_threshold` tier |
+| Agent review and override workspace | §13 Screens / Claim detail | Built — damage type, severity, repair action, and part label all editable |
 | Routing and auto-approval | §10 Routing logic | Built — auto-approval always on for eligible claims |
+| Conditional escalation | §10 Routing logic | Built — Escalate option only shown for agent\_review / low-confidence claims not yet escalated |
 | Audit trail | §6 Modules / audit | Built |
 | Role switcher (customer / agent / supervisor) | §7 Users and roles | Built |
+| Claims queue — sortable and filterable | §13 Screens / Queue | Built — sort by any column; filter by status, tier, and free text |
+| Claims queue — approved amount column | §13 Screens / Queue | Built — shows agent-set total alongside AI estimate for approved claims |
+| Claims queue — correct customer column | §13 Screens / Queue | Built — resolves policy holder via vehicle → policy, not claim submitter |
 | License plate on vehicles | Data model | Built |
 | Fraud detection | PRD §3 P2 | Not built — P2 scope |
 | Video / multi-angle capture | PRD §3 P2 | Not built — P2 scope |
@@ -64,7 +70,7 @@ The database is pre-seeded with two customer accounts and four claims that demon
 
 | Claim | Customer | Scenario | Routing | Estimate |
 |---|---|---|---|---|
-| CLM-2024-001 | Alex Rivera | Clean — run assessment to trigger auto-approve | auto\_approved | ~$870 (mock) |
+| CLM-2024-001 | Alex Rivera | Clean — run assessment to trigger auto-approve | auto\_approved | ~$924 (mock) |
 | CLM-2024-002 | Alex Rivera | Ambiguous — confidence 0.72, below threshold | agent\_review | $3,120 |
 | CLM-2024-003 | Sam Torres | Severe near-total-loss — exceeds $10k threshold | senior\_adjuster | $10,440 |
 | CLM-2024-004 | Sam Torres | Fraud-flagged — flag overrides cost | senior\_adjuster | $2,340 |
@@ -181,6 +187,8 @@ Unit tests cover the routing rules and the estimate pricing math.
 > Migrations are **not** wired into the Vercel build. Run the migration script manually before deploying a schema change.
 >
 > To wipe and re-seed a deployed database: set `DATABASE_URL` to the pooled string and run `npm run db:reset`.
+>
+> **Custom domain**: configure `scalecarinsurance.com` (or your domain) under the Vercel project **Settings → Domains** tab so that production deployments update the domain automatically. If the domain is only set via a manual `vercel alias` command it will not update on future deploys and you will need to re-alias after each one.
 
 ---
 

@@ -35,6 +35,14 @@ import { BP } from "@/lib/api-path";
 
 type Finding = z.infer<typeof FindingRecordSchema>;
 
+const TRIGGERED_BY_LABELS: Record<string, string> = {
+  fraud_flag:                          "Fraud flag",
+  possible_total_loss:                 "Possible total loss",
+  estimate_exceeds_threshold:          "Estimate exceeds threshold",
+  confidence_and_cost_within_threshold:"Confidence & cost within threshold",
+  confidence_below_threshold:          "Low confidence",
+};
+
 function fmt(val: string | number | null | undefined) {
   if (val == null) return "—";
   const n = typeof val === "string" ? parseFloat(val) : val;
@@ -325,7 +333,7 @@ export function ClaimDetail({
 
   async function submitReview() {
     if (!claim.assessment) return;
-    const effectiveTotal = finalTotal || claim.assessment.estimateTotal;
+    const effectiveTotal = reviewDecision === "denied" ? "0" : (finalTotal || claim.assessment.estimateTotal);
     if (!/^\d+(\.\d{1,2})?$/.test(effectiveTotal)) {
       toast.error("Final total must be a valid dollar amount (e.g. 1234.56).");
       return;
@@ -619,14 +627,14 @@ export function ClaimDetail({
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <TierBadge tier={claim.routing.tier} />
                   <span className="text-border">·</span>
-                  <span className="font-mono">{claim.routing.triggeredBy}</span>
+                  <span className="text-xs">{TRIGGERED_BY_LABELS[claim.routing.triggeredBy] ?? claim.routing.triggeredBy}</span>
                 </div>
               )}
 
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Decision</Label>
                 <div className="flex gap-2">
-                  {(["approved", "denied", "escalated"] as const).map((d) => (
+                  {(["approved", "denied"] as const).map((d) => (
                     <button
                       key={d}
                       type="button"
@@ -640,33 +648,48 @@ export function ClaimDetail({
                       {d[0].toUpperCase() + d.slice(1)}
                     </button>
                   ))}
+                  {claim.routing?.tier !== "senior_adjuster" && claim.status !== "escalated" && (
+                    <button
+                      type="button"
+                      onClick={() => setReviewDecision("escalated")}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                        reviewDecision === "escalated"
+                          ? "bg-foreground text-background border-foreground"
+                          : "bg-background border-border hover:bg-muted text-foreground"
+                      }`}
+                    >
+                      Escalate
+                    </button>
+                  )}
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="final-total" className="text-xs text-muted-foreground">
-                  Final total
-                  {assessment && (
-                    <span className="ml-1 font-normal">
-                      (AI estimate: {fmt(assessment.estimateTotal)})
+              {reviewDecision !== "denied" && (
+                <div className="space-y-2">
+                  <Label htmlFor="final-total" className="text-xs text-muted-foreground">
+                    Final total
+                    {assessment && (
+                      <span className="ml-1 font-normal">
+                        (AI estimate: {fmt(assessment.estimateTotal)})
+                      </span>
+                    )}
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                      $
                     </span>
-                  )}
-                </Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                    $
-                  </span>
-                  <Input
-                    id="final-total"
-                    className="pl-6 font-mono"
-                    placeholder={
-                      assessment ? parseFloat(assessment.estimateTotal).toFixed(2) : "0.00"
-                    }
-                    value={finalTotal}
-                    onChange={(e) => setFinalTotal(e.target.value)}
-                  />
+                    <Input
+                      id="final-total"
+                      className="pl-6 font-mono"
+                      placeholder={
+                        assessment ? parseFloat(assessment.estimateTotal).toFixed(2) : "0.00"
+                      }
+                      value={finalTotal}
+                      onChange={(e) => setFinalTotal(e.target.value)}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="review-notes" className="text-xs text-muted-foreground">
@@ -705,9 +728,11 @@ export function ClaimDetail({
             <MetaField label="Decision">
               <span className="capitalize">{claim.review.decision}</span>
             </MetaField>
-            <MetaField label="Final total" mono>
-              {fmt(claim.review.finalTotal)}
-            </MetaField>
+            {claim.review.decision !== "denied" && (
+              <MetaField label="Final total" mono>
+                {fmt(claim.review.finalTotal)}
+              </MetaField>
+            )}
             <MetaField label="Reviewed">
               {new Date(claim.review.reviewedAt).toLocaleDateString("en-US", {
                 month: "short",

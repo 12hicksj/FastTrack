@@ -21,6 +21,7 @@ import { estimateLineItems } from "@/db/schema/estimate";
 import { routingDecisions, routingTiers } from "@/db/schema/routing";
 import { users } from "@/db/schema/auth";
 import { eq, and, desc, inArray } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import type { ClaimDetail, ClaimSummary } from "./types";
 import type { CreateClaimInput, ReviewClaimInput } from "@/shared/schemas";
 import type { SessionUser } from "@/auth";
@@ -180,6 +181,8 @@ export async function submitReview(
 }
 
 export async function listClaims(actor: SessionUser): Promise<ClaimSummary[]> {
+  const customerUsers = alias(users, "customer_users");
+
   // Latest routing decision per claim (subquery approach: load all and de-dup in JS)
   const base = await db
     .select({
@@ -193,18 +196,20 @@ export async function listClaims(actor: SessionUser): Promise<ClaimSummary[]> {
       fraudFlagged: claims.fraudFlagged,
       assignedAgentId: claims.assignedAgentId,
       reportedByUserId: claims.reportedByUserId,
-      customerFirstName: users.firstName,
-      customerLastName: users.lastName,
+      customerId: policies.customerId,
+      customerFirstName: customerUsers.firstName,
+      customerLastName: customerUsers.lastName,
     })
     .from(claims)
     .innerJoin(claimStatuses, eq(claims.statusId, claimStatuses.statusId))
     .innerJoin(vehicles, eq(claims.vehicleId, vehicles.vehicleId))
-    .innerJoin(users, eq(claims.reportedByUserId, users.userId))
+    .innerJoin(policies, eq(vehicles.policyId, policies.policyId))
+    .innerJoin(customerUsers, eq(policies.customerId, customerUsers.userId))
     .orderBy(desc(claims.createdAt));
 
   // Filter by role
   const filtered = base.filter((row) => {
-    if (actor.role === "customer") return row.reportedByUserId === actor.userId;
+    if (actor.role === "customer") return row.customerId === actor.userId;
     if (actor.role === "agent") return row.assignedAgentId === actor.userId;
     return true; // supervisor sees all
   });
@@ -242,14 +247,40 @@ export async function listClaims(actor: SessionUser): Promise<ClaimSummary[]> {
     }
   }
 
+  // Load latest agent review per claim
+  const reviewRows = await db
+    .select({
+      claimId: agentReviews.claimId,
+      finalTotal: agentReviews.finalTotal,
+      decisionName: reviewDecisions.name,
+      reviewedAt: agentReviews.reviewedAt,
+    })
+    .from(agentReviews)
+    .innerJoin(reviewDecisions, eq(agentReviews.decisionId, reviewDecisions.decisionId))
+    .where(inArray(agentReviews.claimId, claimIds))
+    .orderBy(desc(agentReviews.reviewedAt));
+
+  const reviewMap = new Map<string, { finalTotal: string; decisionName: string }>();
+  for (const r of reviewRows) {
+    if (!reviewMap.has(r.claimId)) {
+      reviewMap.set(r.claimId, {
+        finalTotal: r.finalTotal,
+        decisionName: r.decisionName,
+      });
+    }
+  }
+
   return filtered.map((row) => {
     const routing = routingMap.get(row.claimId);
+    const review = reviewMap.get(row.claimId);
     return {
       claimId: row.claimId,
       claimNumber: row.claimNumber,
       status: row.statusName,
       routingTier: routing?.tierName ?? null,
       estimateTotal: routing?.estimateSnapshot ?? null,
+      reviewFinalTotal: review?.decisionName === "approved" ? review.finalTotal : null,
+      reviewDecision: review?.decisionName ?? null,
       incidentDate: row.incidentDate,
       vehicleMake: row.vehicleMake,
       vehicleModel: row.vehicleModel,
@@ -266,6 +297,8 @@ export async function getClaimDetail(
   claimId: string,
   actor: SessionUser
 ): Promise<ClaimDetail | null> {
+  const customerUsers = alias(users, "customer_users");
+
   const rows = await db
     .select({
       claimId: claims.claimId,
@@ -276,19 +309,21 @@ export async function getClaimDetail(
       fraudFlagged: claims.fraudFlagged,
       reportedByUserId: claims.reportedByUserId,
       assignedAgentId: claims.assignedAgentId,
+      customerId: policies.customerId,
       vehicleMake: vehicles.make,
       vehicleModel: vehicles.model,
       vehicleYear: vehicles.year,
       vehicleVin: vehicles.vin,
       vehicleValue: vehicles.value,
       vehicleLicensePlate: vehicles.licensePlate,
-      customerFirstName: users.firstName,
-      customerLastName: users.lastName,
+      customerFirstName: customerUsers.firstName,
+      customerLastName: customerUsers.lastName,
     })
     .from(claims)
     .innerJoin(claimStatuses, eq(claims.statusId, claimStatuses.statusId))
     .innerJoin(vehicles, eq(claims.vehicleId, vehicles.vehicleId))
-    .innerJoin(users, eq(claims.reportedByUserId, users.userId))
+    .innerJoin(policies, eq(vehicles.policyId, policies.policyId))
+    .innerJoin(customerUsers, eq(policies.customerId, customerUsers.userId))
     .where(eq(claims.claimId, claimId))
     .limit(1);
 
@@ -296,7 +331,7 @@ export async function getClaimDetail(
   const row = rows[0];
 
   // Role-based access
-  if (actor.role === "customer" && row.reportedByUserId !== actor.userId) return null;
+  if (actor.role === "customer" && row.customerId !== actor.userId) return null;
   if (actor.role === "agent" && row.assignedAgentId !== actor.userId) return null;
 
   // Photos
@@ -474,6 +509,8 @@ export async function getClaimDetail(
     status: row.statusName,
     routingTier: routing?.tier ?? null,
     estimateTotal: routing?.estimateSnapshot ?? null,
+    reviewFinalTotal: review?.decision === "approved" ? review.finalTotal : null,
+    reviewDecision: review?.decision ?? null,
     incidentDate: row.incidentDate,
     vehicleMake: row.vehicleMake,
     vehicleModel: row.vehicleModel,

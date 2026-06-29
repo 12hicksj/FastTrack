@@ -4,6 +4,8 @@ export interface ClaimSummary {
   status: string;
   routingTier: string | null;
   estimateTotal: string | null;
+  reviewFinalTotal: string | null;
+  reviewDecision: string | null;
   incidentDate: string;
   vehicleMake: string;
   vehicleModel: string;

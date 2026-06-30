@@ -62,7 +62,7 @@ erDiagram
         string model
         int year
         numeric value
-        string license_plate
+        string license_plate "not null"
     }
     CLAIM_STATUSES {
         int status_id PK

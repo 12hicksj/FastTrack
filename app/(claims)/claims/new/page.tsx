@@ -155,6 +155,7 @@ export default function NewClaimPage() {
         const blob = await upload(file.name, file, {
           access: "public",
           handleUploadUrl: `${BP}/api/upload`,
+          contentType: file.type || "image/jpeg",
         });
         newPhotos.push({
           url: blob.url,

@@ -51,7 +51,7 @@ Route handlers in `app/api/` stay thin: they validate input against a Zod schema
 | Preliminary estimate generation | Section 13 Estimate pricing | Built — vehicle-aware pricing (make/year multipliers) |
 | Confidence scoring and triage | Section 10 Routing logic | Built — includes `confidence_below_threshold` tier |
 | Agent review and override workspace | Section 13 Screens / Claim detail | Built — damage type, severity, repair action, and part label all editable |
-| Routing and auto-approval | Section 10 Routing logic | Built — auto-approval always on for eligible claims |
+| Routing and auto-approval | Section 10 Routing logic | Built — auto-approval configurable per claim; enabled for CLM-2024-001 to demonstrate the flow |
 | Conditional escalation | Section 10 Routing logic | Built — Escalate option only shown for agent\_review / low-confidence claims not yet escalated |
 | Audit trail | Section 6 Modules / audit | Built |
 | Role switcher (customer / agent / supervisor) | Section 7 Users and roles | Built |
@@ -66,16 +66,18 @@ Route handlers in `app/api/` stay thin: they validate input against a Zod schema
 
 ## Seed scenarios
 
-The database is pre-seeded with two customer accounts and four claims that demonstrate every routing branch:
+The database is pre-seeded with two customer accounts and four claims that demonstrate three of the four routing tiers:
 
 | Claim | Customer | Scenario | Routing | Estimate |
 |---|---|---|---|---|
 | CLM-2024-001 | Alex Rivera | Clean — run assessment to trigger auto-approve | auto\_approved | ~$924 (mock) |
-| CLM-2024-002 | Alex Rivera | Ambiguous — confidence 0.72, below threshold | agent\_review | $3,120 |
+| CLM-2024-002 | Alex Rivera | Ambiguous — confidence 0.72, below auto-approve threshold | agent\_review | $3,120 |
 | CLM-2024-003 | Sam Torres | Severe near-total-loss — exceeds $10k threshold | senior\_adjuster | $10,440 |
 | CLM-2024-004 | Sam Torres | Fraud-flagged — flag overrides cost | senior\_adjuster | $2,340 |
 
-Auto-approval is **off by default** so a person reviews every claim. The clean scenario (CLM-2024-001) has auto-approval enabled so the auto-approve branch can be demonstrated end to end.
+The fourth tier — **low confidence** — is not represented in the seed data but is triggered automatically when a new claim is submitted and the AI returns a very low confidence score.
+
+Auto-approval is off by default so a person reviews every claim. CLM-2024-001 has auto-approval enabled specifically to demonstrate that branch end to end.
 
 ---
 

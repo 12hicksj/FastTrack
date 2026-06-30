@@ -152,7 +152,9 @@ export default function NewClaimPage() {
       const newPhotos: UploadedPhoto[] = [];
       for (const file of files) {
         const index = photos.length + newPhotos.length;
-        const blob = await upload(file.name, file, {
+        const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+        const safeName = `photo-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const blob = await upload(safeName, file, {
           access: "public",
           handleUploadUrl: `${BP}/api/upload`,
           contentType: file.type || "image/jpeg",

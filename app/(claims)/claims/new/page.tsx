@@ -374,8 +374,9 @@ export default function NewClaimPage() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
-              <p className="text-xs text-muted-foreground text-right">
-                {description.length} / 2000
+              <p className="text-xs text-muted-foreground flex justify-between">
+                <span>Minimum 10 characters</span>
+                <span>{description.length} / 2000</span>
               </p>
             </div>
           </div>
